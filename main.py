@@ -99,7 +99,7 @@ class Signals:
 #The mail addresses and password
 sender_address = 'pythontradingbot11@gmail.com'
 sender_pass = os.getenv('mail_key')
-receiver_address = 'carlos.mfresco@gmail.com'
+receiver_address = os.getenv('mail')
 #Setup the MIME
 message = MIMEMultipart() 
 message_SL = MIMEMultipart()
@@ -116,6 +116,7 @@ def strategy_short(qty, open_position = False):
     apply_technicals(df)
     inst = Signals(df, 1)
     inst.decide()
+    print(f'Current Time is ' + str(df.index[-1]))
     print(f'Current Close is '+str(df.Close.iloc[-1]))
     print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
     print("-----------------------------------------")
@@ -162,10 +163,10 @@ def strategy_short(qty, open_position = False):
         eth_order_id = str(order['result']['order_id'])
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
         print(f"Order id: {eth_order_id}") 
-        print("-------------------------------------------------")
+        print("---------------------------------------------------")
 
         open_position = True
-        
+
     while open_position:
         time.sleep(30)
         from pybit import spot
@@ -176,9 +177,9 @@ def strategy_short(qty, open_position = False):
             
         df = get5minutedata()
         apply_technicals(df)
-        print(f"Buyprice: {buyprice}" + '                Close: ' + str(df.Close.iloc[-1]))
-        print(f'Target: ' + str(round(buyprice * 0.93, 2)) + "                 Stop: " + str(round(buyprice * 1.03, 2)))
-        print(f'RSI Target: 25' + '                RSI: ' + str(df.RSI.iloc[-1]))
+        print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
+        print(f'Target: ' + str(round(buyprice * 0.93, 2)) + "                Stop: " + str(round(buyprice * 1.03, 2)))
+        print(f'RSI Target: 53' + '                RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
         if df.Close[-1] > buyprice* 1.03:
@@ -209,12 +210,13 @@ def strategy_short(qty, open_position = False):
             # Create SMTP session for sending the mail
             session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
             session_mail.starttls()  # enable security
-
+            
             # login with mail_id and password
             session_mail.login(sender_address, sender_pass)
             text = message_TP.as_string()
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
+            break
 
         elif df.RSI[-1] < 25:
             session = usdt_perpetual.HTTP(
@@ -229,8 +231,9 @@ def strategy_short(qty, open_position = False):
                                                 qty= qty,
                                                 time_in_force="GoodTillCancel",
                                                 reduce_only=True,
-                                                close_on_trigger=False))            
-            
+                                                close_on_trigger=False))  
+
+                print("---------------------------------------------------")
                 print("Closed position")
                 open_position = False
                 mail_content_RSI = "ETH Short Closed - RSI < 25"
@@ -249,6 +252,7 @@ def strategy_short(qty, open_position = False):
 
             except: 
                 print("Position already closed")
+                open_position = False
                 
                 mail_content_Others = "Position Closed"
                 message_Others.attach(MIMEText(mail_content_Others, 'plain'))
@@ -269,8 +273,8 @@ def strategy_short(qty, open_position = False):
 
 
 while True: 
-    strategy_short(0.5)
-    time.sleep(60)
+    strategy_short(0.7)
+    time.sleep(30)
 
 
 
