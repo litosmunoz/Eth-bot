@@ -178,8 +178,8 @@ def strategy_short(qty, open_position = False):
         df = get5minutedata()
         apply_technicals(df)
         print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
-        print(f'Target: ' + str(round(buyprice * 0.93, 2)) + "                Stop: " + str(round(buyprice * 1.03, 2)))
-        print(f'RSI Target: 53' + '                RSI: ' + str(df.RSI.iloc[-1]))
+        print(f'Target: ' + str(round(buyprice * 0.93, 2)) + "               Stop: " + str(round(buyprice * 1.03, 2)))
+        print(f'RSI Target: 25' + '                RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
         if df.Close[-1] > buyprice* 1.03:
