@@ -207,7 +207,7 @@ def strategy_short(qty, open_position = False):
         print(f'RSI Target: 25' + '                RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
-        if df.Close[-1] > buyprice* 1.03:
+        if df.Close[-1] >= buyprice* 1.03:
             print("Closed Position")
             open_position = False
 
@@ -225,7 +225,7 @@ def strategy_short(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.Close[-1] < buyprice * 0.93: 
+        elif df.Close[-1] <= buyprice * 0.93: 
             print("Closed Position")
             open_position = False
 
