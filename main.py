@@ -47,7 +47,7 @@ session_auth = spot.HTTP(
 # In[5]:
 
 
-#This function gets Real BTC Price Data and creates a smooth dataframe that refreshes every 15 minutes
+#This function gets Real SOL Price Data and creates a smooth dataframe that refreshes every 15 minutes
 def get5minutedata():
     frame = pd.DataFrame(session_auth.query_kline(symbol="ETHUSDT", interval="5m")["result"])
     frame = frame.iloc[:,: 6]
