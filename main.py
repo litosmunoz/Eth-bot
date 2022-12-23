@@ -122,34 +122,35 @@ def strategy_short(qty, open_position = False):
     print("-----------------------------------------")
 
     if df.Sell.iloc[-1]:
-        mail_content = "ETH Open Short"
-        message.attach(MIMEText(mail_content, 'plain'))
+        try: 
+            mail_content = "ETH Open Short"
+            message.attach(MIMEText(mail_content, 'plain'))
         
-        # Create SMTP session for sending the mail
-        session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-        session_mail.starttls()  # enable security
+            # Create SMTP session for sending the mail
+            session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
+            session_mail.starttls()  # enable security
 
-        # login with mail_id and password
-        session_mail.login(sender_address, sender_pass)
-        text = message.as_string()
-        session_mail.sendmail(sender_address, receiver_address, text)
-        session_mail.quit()
+            # login with mail_id and password
+            session_mail.login(sender_address, sender_pass)
+            text = message.as_string()
+            session_mail.sendmail(sender_address, receiver_address, text)
+            session_mail.quit()
 
-        from pybit import usdt_perpetual
-        session = usdt_perpetual.HTTP(
-        endpoint='https://api.bybit.com',
-        api_key = api_key_pw,
-        api_secret= api_secret_pw)
+            from pybit import usdt_perpetual
+            session = usdt_perpetual.HTTP(
+            endpoint='https://api.bybit.com',
+            api_key = api_key_pw,
+            api_secret= api_secret_pw)
 
-        buyprice = round(df.Close.iloc[-1],2)
+            buyprice = round(df.Close.iloc[-1],2)
 
-        print("-----------------------------------------")
+            print("-----------------------------------------")
 
-        print(f"Buyprice: {buyprice}")
+            print(f"Buyprice: {buyprice}")
 
-        print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-        order = session.place_active_order(symbol="ETHUSDT",
+            order = session.place_active_order(symbol="ETHUSDT",
                                                 side="Sell",
                                                 order_type="Market",
                                                 qty= qty,
@@ -158,23 +159,47 @@ def strategy_short(qty, open_position = False):
                                                 close_on_trigger=False,
                                                 take_profit = round(buyprice * 0.93,2),
                                                 stop_loss = round(buyprice * 1.03,2))
-        print(order)
+            print(order)
 
-        eth_order_id = str(order['result']['order_id'])
-        print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-        print(f"Order id: {eth_order_id}") 
-        print("---------------------------------------------------")
+            eth_order_id = str(order['result']['order_id'])
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print(f"Order id: {eth_order_id}") 
+            print("---------------------------------------------------")
 
-        open_position = True
+            open_position = True
+        except:
+            time.sleep(40)
+
+            buyprice = round(df.Close.iloc[-1],2)
+
+            print("-----------------------------------------")
+
+            print(f"Buyprice: {buyprice}")
+
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+
+            order = session.place_active_order(symbol="ETHUSDT",
+                                                side="Sell",
+                                                order_type="Market",
+                                                qty= qty,
+                                                time_in_force="GoodTillCancel",
+                                                reduce_only=False,
+                                                close_on_trigger=False,
+                                                take_profit = round(buyprice * 0.93,2),
+                                                stop_loss = round(buyprice * 1.03,2))
+            print(order)
+
+            eth_order_id = str(order['result']['order_id'])
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print(f"Order id: {eth_order_id}") 
+            print("---------------------------------------------------")
+
+            open_position = True
+
 
     while open_position:
         time.sleep(30)
-        from pybit import spot
-        session_auth = spot.HTTP(
-            endpoint='https://api.bybit.com',
-            api_key = api_key_pw,
-            api_secret= api_secret_pw)
-            
+                            
         df = get5minutedata()
         apply_technicals(df)
         print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
@@ -219,11 +244,7 @@ def strategy_short(qty, open_position = False):
             break
 
         elif df.RSI[-1] < 25:
-            session = usdt_perpetual.HTTP(
-            endpoint='https://api.bybit.com',
-            api_key = api_key_pw,
-            api_secret= api_secret_pw)
-
+            
             try: 
                 print(session.place_active_order(symbol="ETHUSDT",
                                                 side="Buy",
