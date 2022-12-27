@@ -82,7 +82,7 @@ class Signals:
     def get_trigger(self):
         df_2 = pd.DataFrame()
         for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) > 75)
+            mask = (self.df["RSI"].shift(i) > 77)
             df_2 = df_2.append(mask, ignore_index = True)
         return df_2.sum(axis= 0)
     
@@ -204,7 +204,7 @@ def strategy_short(qty, open_position = False):
         apply_technicals(df)
         print(f"Buyprice: {buyprice}" + '              Close: ' + str(df.Close.iloc[-1]))
         print(f'Target: ' + str(round(buyprice * 0.93, 2)) + "               Stop: " + str(round(buyprice * 1.03, 2)))
-        print(f'RSI Target: 25' + '                RSI: ' + str(df.RSI.iloc[-1]))
+        print(f'RSI Target: 24' + '                RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
         if df.Close[-1] >= buyprice* 1.03:
@@ -243,7 +243,7 @@ def strategy_short(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.RSI[-1] < 25:
+        elif df.RSI[-1] < 24:
             
             try: 
                 print(session.place_active_order(symbol="ETHUSDT",
@@ -257,7 +257,7 @@ def strategy_short(qty, open_position = False):
                 print("---------------------------------------------------")
                 print("Closed position")
                 open_position = False
-                mail_content_RSI = "ETH Short Closed - RSI < 25"
+                mail_content_RSI = "ETH Short Closed - RSI < 24"
                 message_RSI.attach(MIMEText(mail_content_RSI, 'plain'))
 
                 # Create SMTP session for sending the mail
