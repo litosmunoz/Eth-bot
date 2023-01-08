@@ -9,7 +9,6 @@ import numpy as np
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pybit import spot  # <-- import HTTP & WSS for spot
 from dotenv import load_dotenv
 import os
 import time
@@ -27,9 +26,11 @@ load_dotenv()
 # In[3]:
 
 
-#Loading my Bybit's API keys from the dotenv file
+#Loading my Bybit's API keys and mail info from the dotenv file
 api_key_pw = os.getenv('api_key_bot_IP')
 api_secret_pw = os.getenv('api_secret_bot_IP')
+sender_pass = os.getenv('mail_key')
+receiver_address = os.getenv('mail')
 
 
 # In[4]:
@@ -38,6 +39,14 @@ api_secret_pw = os.getenv('api_secret_bot_IP')
 #Establishing Connection with the API (SPOT)
 from pybit import spot
 session_auth = spot.HTTP(
+    endpoint='https://api.bybit.com',
+    api_key = api_key_pw,
+    api_secret= api_secret_pw
+)
+
+#Establishing Connection with the API (FUTURES)
+from pybit import usdt_perpetual
+session = usdt_perpetual.HTTP(
     endpoint='https://api.bybit.com',
     api_key = api_key_pw,
     api_secret= api_secret_pw
@@ -72,6 +81,13 @@ def apply_technicals(df):
 
 # In[7]:
 
+# Variables
+rsi_enter = 77
+rsi_exit = 24
+
+
+# In[8]:
+
 
 class Signals:
     def __init__(self, df, lags):
@@ -82,7 +98,7 @@ class Signals:
     def get_trigger(self):
         df_2 = pd.DataFrame()
         for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) > 77)
+            mask = (self.df["RSI"].shift(i) > rsi_enter)
             df_2 = df_2.append(mask, ignore_index = True)
         return df_2.sum(axis= 0)
     
@@ -93,13 +109,12 @@ class Signals:
 
 
 
-# In[8]:
+# In[9]:
 
 
 #The mail addresses and password
 sender_address = 'pythontradingbot11@gmail.com'
-sender_pass = os.getenv('mail_key')
-receiver_address = os.getenv('mail')
+
 #Setup the MIME
 message = MIMEMultipart() 
 message_SL = MIMEMultipart()
@@ -108,7 +123,7 @@ message_RSI = MIMEMultipart()
 message_Others = MIMEMultipart()
 
 
-# In[9]:
+# In[10]:
 
 
 def strategy_short(qty, open_position = False):
@@ -120,6 +135,9 @@ def strategy_short(qty, open_position = False):
     print(f'Current Close is '+str(df.Close.iloc[-1]))
     print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
     print("-----------------------------------------")
+    buyprice = round(df.Close.iloc[-1],2)
+    tp = round(buyprice * 0.93,2)
+    sl = round(buyprice * 1.03,2)
 
     if df.Sell.iloc[-1]:
         try: 
@@ -136,14 +154,6 @@ def strategy_short(qty, open_position = False):
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
 
-            from pybit import usdt_perpetual
-            session = usdt_perpetual.HTTP(
-            endpoint='https://api.bybit.com',
-            api_key = api_key_pw,
-            api_secret= api_secret_pw)
-
-            buyprice = round(df.Close.iloc[-1],2)
-
             print("-----------------------------------------")
 
             print(f"Buyprice: {buyprice}")
@@ -157,8 +167,8 @@ def strategy_short(qty, open_position = False):
                                                 time_in_force="GoodTillCancel",
                                                 reduce_only=False,
                                                 close_on_trigger=False,
-                                                take_profit = round(buyprice * 0.93,2),
-                                                stop_loss = round(buyprice * 1.03,2))
+                                                take_profit = tp,
+                                                stop_loss = sl)
             print(order)
 
             eth_order_id = str(order['result']['order_id'])
@@ -168,9 +178,7 @@ def strategy_short(qty, open_position = False):
 
             open_position = True
         except:
-            time.sleep(40)
-
-            buyprice = round(df.Close.iloc[-1],2)
+            time.sleep(20)
 
             print("-----------------------------------------")
 
@@ -185,8 +193,8 @@ def strategy_short(qty, open_position = False):
                                                 time_in_force="GoodTillCancel",
                                                 reduce_only=False,
                                                 close_on_trigger=False,
-                                                take_profit = round(buyprice * 0.93,2),
-                                                stop_loss = round(buyprice * 1.03,2))
+                                                take_profit = tp,
+                                                stop_loss = sl)
             print(order)
 
             eth_order_id = str(order['result']['order_id'])
@@ -202,12 +210,12 @@ def strategy_short(qty, open_position = False):
                             
         df = get5minutedata()
         apply_technicals(df)
-        print(f"Buyprice: {buyprice}" + '              Close: ' + str(df.Close.iloc[-1]))
-        print(f'Target: ' + str(round(buyprice * 0.93, 2)) + "               Stop: " + str(round(buyprice * 1.03, 2)))
+        print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
+        print(f'Target: ' + str(tp) + "               Stop: " + str(sl))
         print(f'RSI Target: 24' + '                RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
-        if df.Close[-1] >= buyprice* 1.03:
+        if df.Close[-1] >= sl:
             print("Closed Position")
             open_position = False
 
@@ -225,7 +233,7 @@ def strategy_short(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.Close[-1] <= buyprice * 0.93: 
+        elif df.Close[-1] <= tp: 
             print("Closed Position")
             open_position = False
 
@@ -243,7 +251,7 @@ def strategy_short(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.RSI[-1] < 24:
+        elif df.RSI[-1] < rsi_exit:
             
             try: 
                 print(session.place_active_order(symbol="ETHUSDT",
@@ -290,15 +298,11 @@ def strategy_short(qty, open_position = False):
                 break
 
 
-# In[10]:
+# In[11]:
 
 
 while True: 
     strategy_short(0.7)
     time.sleep(30)
-
-
-
-
 
 
