@@ -82,8 +82,8 @@ def apply_technicals(df):
 # In[7]:
 
 # Variables
-rsi_enter = 60
-rsi_exit = 50
+rsi_enter = 77
+rsi_exit = 24
 
 
 # In[8]:
@@ -136,8 +136,8 @@ def strategy_short(qty, open_position = False):
     print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
     print("-----------------------------------------")
     buyprice = round(df.Close.iloc[-1],2)
-    tp = round(buyprice * 0.99,2)
-    sl = round(buyprice * 1.01,2)
+    tp = round(buyprice * 0.93,2)
+    sl = round(buyprice * 1.03,2)
 
     if df.Sell.iloc[-1]:
         try: 
@@ -153,8 +153,6 @@ def strategy_short(qty, open_position = False):
             text = message.as_string()
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
-
-            #buyprice = round(df.Close.iloc[-1],2)
 
             print("-----------------------------------------")
 
@@ -304,7 +302,7 @@ def strategy_short(qty, open_position = False):
 
 
 while True: 
-    strategy_short(0.01)
+    strategy_short(0.7)
     time.sleep(30)
 
 
