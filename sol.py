@@ -185,8 +185,11 @@ def strategy_long(qty, open_position = False):
                 print(order_status)
                 
                 # If the order has been filled or cancelled, exit the loop
-                if order_status in ["Filled", "Cancelled"]:
+                if order_status in ["Filled"]:
                     open_position = True
+                    break
+                elif order_status in ["Cancelled"]:
+                    open_position = False 
                     break
 
                 # Sleep for 1 second before checking the order status again
