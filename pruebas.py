@@ -3,9 +3,6 @@
 
 # In[1]:
 
-#Variables
-RSI_ENTER = 77
-RSI_EXIT = 24
 
 import pandas as pd
 import numpy as np
@@ -84,6 +81,15 @@ def apply_technicals(df):
 
 # In[7]:
 
+# Variables
+rsi_enter = 77
+rsi_exit = 24
+MAX_NUM_STOP_LOSS_CONTINUOUS = 2
+numStopLoss = 0
+
+
+# In[8]:
+
 
 class Signals:
     def __init__(self, df, lags):
@@ -94,7 +100,7 @@ class Signals:
     def get_trigger(self):
         df_2 = pd.DataFrame()
         for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) > RSI_ENTER)
+            mask = (self.df["RSI"].shift(i) > rsi_enter)
             df_2 = df_2.append(mask, ignore_index = True)
         return df_2.sum(axis= 0)
     
@@ -105,25 +111,20 @@ class Signals:
 
 
 
-# In[8]:
+# In[9]:
 
 #The mail addresses and password
 sender_address = 'pythontradingbot11@gmail.com'
 
-#Function to automate mails
-def send_email(mail_content):
-    message = MIMEMultipart()
-    message.attach(MIMEText(mail_content, 'plain'))
-    # Create SMTP session for sending the mail
-    session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-    session_mail.starttls()  # enable security
-    session_mail.login(sender_address, sender_pass)
-    text = message.as_string()
-    session_mail.sendmail(sender_address, receiver_address, text)
-    session_mail.quit()
+#Setup the MIME
+message = MIMEMultipart() 
+message_SL = MIMEMultipart()
+message_TP = MIMEMultipart()
+message_RSI = MIMEMultipart()
+message_Others = MIMEMultipart()
 
 
-# In[9]:
+# In[10]:
 
 
 def strategy_short(qty, open_position = False):
@@ -133,7 +134,7 @@ def strategy_short(qty, open_position = False):
     inst.decide()
     print(f'Current Time is ' + str(df.index[-1]))
     print(f'Current Close is '+str(df.Close.iloc[-1]))
-    print(f'RSI: {round(df.RSI.iloc[-1], 2)}')
+    print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
     print("-----------------------------------------")
     buyprice = round(df.Close.iloc[-1],2)
     tp = round(buyprice * 0.93,2)
@@ -207,6 +208,9 @@ def strategy_short(qty, open_position = False):
 
     while open_position:
         time.sleep(30)
+        
+        profit = 
+        
                             
         df = get5minutedata()
         apply_technicals(df)
@@ -219,7 +223,7 @@ def strategy_short(qty, open_position = False):
             print("Closed Position")
             open_position = False
 
-            mail_content_SL = "ETH Short SL"
+            mail_content_SL = f"""Profit = {profit} ETH Short SL"""
             message_SL.attach(MIMEText(mail_content_SL, 'plain'))
 
             # Create SMTP session for sending the mail
@@ -231,9 +235,25 @@ def strategy_short(qty, open_position = False):
             text = message_SL.as_string()
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
-
             
-            exit()
+            numStopLoss++;
+            
+            if (numStopLoss)
+            
+            if File.exists(stop_loss_count_file.txt):
+              numStopLossGlobal = File.read(stop_loss_count_file.txt)
+              File.Delete(stop_loss_count_file.txt)
+            
+            
+            print(file='stop_loss_count_file.txt', numStopLoss)
+            
+						
+            
+            if numStopLoss >= MAX_NUM_STOP_LOSS_CONTINUOUS:
+              exit()
+            else:
+              numStopLoss++
+              break
             
 
         elif df.Close[-1] <= tp: 
@@ -252,6 +272,8 @@ def strategy_short(qty, open_position = False):
             text = message_TP.as_string()
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
+            
+            numStopLoss = 0
             break
 
         elif df.RSI[-1] < rsi_exit:
@@ -280,6 +302,8 @@ def strategy_short(qty, open_position = False):
                 text = message_RSI.as_string()
                 session_mail.sendmail(sender_address, receiver_address, text)
                 session_mail.quit()
+                
+                numStopLoss = 0
                 break
 
             except: 
@@ -307,5 +331,35 @@ def strategy_short(qty, open_position = False):
 while True: 
     strategy_short(0.7)
     time.sleep(30)
+    
+    
+    
+    
+  send_email(subject, result = "", exit_price = "")
+  send_email(subject, result = "", exit_price = "")
+  send_email(subject)
+def send_email(subject, result = null, buy_price = null, exit_price = null):
+    content = ""
+    if result:
+      content += f"""Result: {result}\n"""
+    if buy_price:
+      content += f"""Buy Price: {buy_price}\n"""
+    if exit_price:
+      content += f"""Exit Price: {exit_price}\n"""
+    
+    message = MIMEMultipart()
+    message['From'] = sender_address
+    message['To'] = receiver_address
+  	message['Subject'] = subject 
+    message.attach(MIMEText(mail_content, 'plain'))
+    
+    
+    #Create SMTP session for sending the mail
+    session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
+    session_mail.starttls()  # enable security
+    session_mail.login(sender_address, sender_pass)
+    text = message.as_string()
+    session_mail.sendmail(sender_address, receiver_address, text)
+    session_mail.quit()
 
 

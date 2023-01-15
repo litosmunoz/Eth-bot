@@ -4,8 +4,10 @@
 # In[1]:
 
 # Variables
-rsi_enter = 32
-K_enter = 0.15
+RSI_ENTER = 32
+K_ENTER = 0.15
+MINUTES = 150
+
 
 import pandas as pd
 import numpy as np
@@ -93,7 +95,7 @@ class Signals:
     def get_trigger(self):
         df_2 = pd.DataFrame()
         for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) < rsi_enter)
+            mask = (self.df["RSI"].shift(i) < RSI_ENTER)
             df_2 = df_2.append(mask, ignore_index = True)
         return df_2.sum(axis= 0)
     
@@ -102,7 +104,7 @@ class Signals:
          self.df["trigger"] = np.where(self.get_trigger(), 1, 0)
          self.df["Buy"]= np.where((self.df.trigger) & 
                                     (self.df["K"] > self.df["D"]) & 
-                                    (self.df["K"]) < K_enter, 1, 0)
+                                    (self.df["K"]) < K_ENTER, 1, 0)
 
 
 
@@ -179,7 +181,7 @@ def strategy_long(qty, open_position = False):
         This code should work as expected and check the order status for 150 minutes, and if the order is not filled or cancelled within 150 minutes it will automatically cancel the order.'''
 
         # Set the expiration time for the order (150 mins from now)
-        expiration_time = int(time.time()) + (150*60)
+        expiration_time = int(time.time()) + (MINUTES*60)
 
         # Wait until the expiration time
         while int(time.time()) < expiration_time:
