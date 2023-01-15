@@ -3,6 +3,9 @@
 
 # In[1]:
 
+# Variables
+rsi_enter = 32
+K_enter = 0.15
 
 import pandas as pd
 import numpy as np
@@ -12,7 +15,7 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import os
 import time
-import ta 
+import ta
 import warnings
 warnings.simplefilter("ignore")
 
@@ -26,7 +29,7 @@ load_dotenv()
 # In[3]:
 
 
-#Loading my Bybit's API keys and mail info from the dotenv file
+#Loading my Bybit's API keys from the dotenv file
 api_key_pw = os.getenv('api_key_bot_IP')
 api_secret_pw = os.getenv('api_secret_bot_IP')
 sender_pass = os.getenv('mail_key')
@@ -52,13 +55,12 @@ session = usdt_perpetual.HTTP(
     api_secret= api_secret_pw
 )
 
-
 # In[5]:
 
 
-#This function gets Real ETH Price Data and creates a smooth dataframe that refreshes every 5 minutes
+#This function gets Real SOL Price Data and creates a smooth dataframe that refreshes every 5 minutes
 def get5minutedata():
-    frame = pd.DataFrame(session_auth.query_kline(symbol="ETHUSDT", interval="5m")["result"])
+    frame = pd.DataFrame(session_auth.query_kline(symbol="SOLUSDT", interval="5m")["result"])
     frame = frame.iloc[:,: 6]
     frame.columns = ['Time', 'Open', 'High', 'Low', 'Close', 'Volume']
     frame = frame.set_index("Time")
@@ -73,20 +75,13 @@ def get5minutedata():
 #Function to apply some technical indicators from the ta library
 def apply_technicals(df):
     df["K"] = ta.momentum.stochrsi(df.Close, window= 14)
-    #df["D"] = df["K"].rolling(3).mean()
+    df["D"] = df["K"].rolling(3).mean()
     df["RSI"] = ta.momentum.rsi(df.Close, window = 14)
     df.dropna(inplace=True)
 
 
 
 # In[7]:
-
-# Variables
-rsi_enter = 77
-rsi_exit = 24
-
-
-# In[8]:
 
 
 class Signals:
@@ -98,18 +93,20 @@ class Signals:
     def get_trigger(self):
         df_2 = pd.DataFrame()
         for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) > rsi_enter)
+            mask = (self.df["RSI"].shift(i) < rsi_enter)
             df_2 = df_2.append(mask, ignore_index = True)
         return df_2.sum(axis= 0)
     
     # Is the trigger fulfilled and are all buying conditions fulfilled?
     def decide(self):
          self.df["trigger"] = np.where(self.get_trigger(), 1, 0)
-         self.df["Sell"]= np.where((self.df.trigger), 1, 0)
+         self.df["Buy"]= np.where((self.df.trigger) & 
+                                    (self.df["K"] > self.df["D"]) & 
+                                    (self.df["K"]) < 0.15, 1, 0)
 
 
 
-# In[9]:
+# In[8]:
 
 
 #The mail addresses and password
@@ -119,31 +116,30 @@ sender_address = 'pythontradingbot11@gmail.com'
 message = MIMEMultipart() 
 message_SL = MIMEMultipart()
 message_TP = MIMEMultipart()
-message_RSI = MIMEMultipart()
-message_Others = MIMEMultipart()
+
+# In[9]:
 
 
-# In[10]:
-
-
-def strategy_short(qty, open_position = False):
+def strategy_long(qty, open_position = False):
     df= get5minutedata()
     apply_technicals(df)
     inst = Signals(df, 1)
     inst.decide()
     print(f'Current Time is ' + str(df.index[-1]))
-    print(f'Current Close is '+str(df.Close.iloc[-1]))
+    print(f'Current Close is '+ str(df.Close.iloc[-1]))
     print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
     print("-----------------------------------------")
-    buyprice = round(df.Close.iloc[-1],2)
-    tp = round(buyprice * 0.93,2)
-    sl = round(buyprice * 1.03,2)
+    price = round(df.Close.iloc[-1],2)
+    buyprice_limit = price * 0.995
+    tp = round(price * 1.04,2)
+    sl = round(price * 0.98,2)
 
-    if df.Sell.iloc[-1]:
+
+    if df.Buy.iloc[-1]:
         try: 
-            mail_content = "ETH Open Short"
+            mail_content = "SOL Open Long Limit Order"
             message.attach(MIMEText(mail_content, 'plain'))
-        
+            
             # Create SMTP session for sending the mail
             session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
             session_mail.starttls()  # enable security
@@ -156,13 +152,14 @@ def strategy_short(qty, open_position = False):
 
             print("-----------------------------------------")
 
-            print(f"Buyprice: {buyprice}")
+            print(f"Limit Buyprice: {buyprice_limit}")
 
             print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-            order = session.place_active_order(symbol="ETHUSDT",
-                                                side="Sell",
-                                                order_type="Market",
+            order = session.place_active_order(symbol="SOLUSDT",
+                                                side="Buy",
+                                                order_type="Limit",
+                                                price = buyprice_limit,
                                                 qty= qty,
                                                 time_in_force="GoodTillCancel",
                                                 reduce_only=False,
@@ -171,55 +168,59 @@ def strategy_short(qty, open_position = False):
                                                 stop_loss = sl)
             print(order)
 
-            eth_order_id = str(order['result']['order_id'])
+            sol_order_id = str(order['result']['order_id'])
             print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print(f"Order id: {eth_order_id}") 
+            print(f"Order id: {sol_order_id}")
             print("---------------------------------------------------")
 
-            open_position = True
-        except:
-            time.sleep(20)
+            # Set the expiration time for the order (5 mins from now)
+            expiration_time = int(time.time()) + 50
 
-            print("-----------------------------------------")
+            # Wait until the expiration time
+            while int(time.time()) < expiration_time:
 
-            print(f"Buyprice: {buyprice}")
+                # Check the status of the order
+                order_info = session.get_active_order(symbol= "SOLUSDT")
+                order_status = str(order_info['result']["data"][0]['order_status'])
+                print(order_status)
+                
+                # If the order has been filled or cancelled, exit the loop
+                if order_status in ["Filled", "Cancelled"]:
+                    open_position = True
+                    break
 
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+                # Sleep for 1 second before checking the order status again
+                time.sleep(10)
+            
 
-            order = session.place_active_order(symbol="ETHUSDT",
-                                                side="Sell",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=False,
-                                                close_on_trigger=False,
-                                                take_profit = tp,
-                                                stop_loss = sl)
-            print(order)
+            if int(time.time()) > expiration_time:
+                order_info = session.get_active_order(symbol= "SOLUSDT")
+                order_status = str(order_info['result']["data"][0]['order_status'])
+                print(order_status)
+                print("----------------------------------------------------------------------")
 
-            eth_order_id = str(order['result']['order_id'])
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print(f"Order id: {eth_order_id}") 
-            print("---------------------------------------------------")
-
-            open_position = True
-
+                if order_status in ["New"]: 
+                    cancel_order = session.cancel_all_active_orders(symbol= "SOLUSDT")
+                    print(cancel_order)
+        
+        except: 
+            print("Error")
 
     while open_position:
-        time.sleep(30)
-                            
+        time.sleep(20)
+                   
         df = get5minutedata()
         apply_technicals(df)
-        print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
-        print(f'Target: ' + str(tp) + "               Stop: " + str(sl))
-        print(f'RSI Target: 24' + '                RSI: ' + str(df.RSI.iloc[-1]))
+        print(f"Buyprice: {buyprice_limit}" + '               Close: ' + str(df.Close.iloc[-1]))
+        print(f'Target: ' + str(tp) + "                  Stop: " + str(sl))
+        print(f'RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
-        if df.Close[-1] >= sl:
+        if df.Close[-1] <= sl:
             print("Closed Position")
             open_position = False
 
-            mail_content_SL = "ETH Short SL"
+            mail_content_SL = "SOL Long SL"
             message_SL.attach(MIMEText(mail_content_SL, 'plain'))
 
             # Create SMTP session for sending the mail
@@ -233,11 +234,11 @@ def strategy_short(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.Close[-1] <= tp: 
+        elif df.Close[-1] >= tp: 
             print("Closed Position")
             open_position = False
 
-            mail_content_TP = "ETH Short TP"
+            mail_content_TP = "SOL Long TP"
             message_TP.attach(MIMEText(mail_content_TP, 'plain'))
 
             # Create SMTP session for sending the mail
@@ -251,58 +252,10 @@ def strategy_short(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.RSI[-1] < rsi_exit:
-            
-            try: 
-                print(session.place_active_order(symbol="ETHUSDT",
-                                                side="Buy",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=True,
-                                                close_on_trigger=False))  
 
-                print("---------------------------------------------------")
-                print("Closed position")
-                open_position = False
-                mail_content_RSI = "ETH Short Closed - RSI < 24"
-                message_RSI.attach(MIMEText(mail_content_RSI, 'plain'))
-
-                # Create SMTP session for sending the mail
-                session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-                session_mail.starttls()  # enable security
-
-                # login with mail_id and password
-                session_mail.login(sender_address, sender_pass)
-                text = message_RSI.as_string()
-                session_mail.sendmail(sender_address, receiver_address, text)
-                session_mail.quit()
-                break
-
-            except: 
-                print("Position already closed")
-                open_position = False
-                
-                mail_content_Others = "Position Closed"
-                message_Others.attach(MIMEText(mail_content_Others, 'plain'))
-
-                # Create SMTP session for sending the mail
-                session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-                session_mail.starttls()  # enable security
-
-                # login with mail_id and password
-                session_mail.login(sender_address, sender_pass)
-                text = message_Others.as_string()
-                session_mail.sendmail(sender_address, receiver_address, text)
-                session_mail.quit()
-                break
-
-
-# In[11]:
+# In[10]:
 
 
 while True: 
-    strategy_short(0.7)
+    strategy_long(75)
     time.sleep(30)
-
-
