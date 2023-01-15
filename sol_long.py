@@ -179,7 +179,7 @@ def strategy_long(qty, open_position = False):
         This code should work as expected and check the order status for 150 minutes, and if the order is not filled or cancelled within 150 minutes it will automatically cancel the order.'''
 
         # Set the expiration time for the order (150 mins from now)
-        expiration_time = int(time.time()) + 9000
+        expiration_time = int(time.time()) + (150*60)
 
         # Wait until the expiration time
         while int(time.time()) < expiration_time:
@@ -199,8 +199,6 @@ def strategy_long(qty, open_position = False):
             elif order_status in ["Cancelled"]:
                 open_position = False 
                 break
-            else: 
-                continue
             
         
         if int(time.time()) > expiration_time:

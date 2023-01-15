@@ -231,7 +231,10 @@ def strategy_short(qty, open_position = False):
             text = message_SL.as_string()
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
-            break
+
+            # 
+            exit()
+            
 
         elif df.Close[-1] <= tp: 
             print("Closed Position")
