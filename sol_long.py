@@ -169,7 +169,7 @@ def strategy_long(qty, open_position = False):
         print("---------------------------------------------------")
 
 
-        '''The next code sets the expiration time to be 9000 seconds (150 minutes) in the future by using expiration_time = int(time.time()) + 600.
+        '''The next code sets the expiration time to be 9000 seconds (150 minutes) in the future by using expiration_time = int(time.time()) + 9000.
         It then enters a while loop that continues to execute as long as the current time is less than the expiration time. 
         In each iteration of the while loop, it check the status of the order by getting the order information using session.get_active_order(symbol= "SOLUSDT") and gets the order status by checking the order_info['result']["data"][0]['order_status']. 
         Then it checks the order status, if the status is "Filled" or "Cancelled" it will break the loop.
@@ -210,9 +210,12 @@ def strategy_long(qty, open_position = False):
             print("----------------------------------------------------------------------")
 
             if order_status not in ["Filled"]: 
-                cancel_order = session.cancel_all_active_orders(symbol= "SOLUSDT")
-                print(cancel_order)
-                open_position= False
+                try:
+                    cancel_order = session.cancel_all_active_orders(symbol= "SOLUSDT")
+                    print(cancel_order)
+                    open_position= False
+                except: 
+                    print("No orders need to be cancelled")
 
     
     while open_position:
