@@ -116,9 +116,6 @@ sender_address = 'pythontradingbot11@gmail.com'
 message = MIMEMultipart() 
 message_SL = MIMEMultipart()
 message_TP = MIMEMultipart()
-message_RSI = MIMEMultipart()
-message_Others = MIMEMultipart()
-
 
 # In[9]:
 
@@ -129,13 +126,13 @@ def strategy_long(qty, open_position = False):
     inst = Signals(df, 1)
     inst.decide()
     print(f'Current Time is ' + str(df.index[-1]))
-    print(f'Current Close is '+str(df.Close.iloc[-1]))
+    print(f'Current Close is '+ str(df.Close.iloc[-1]))
     print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
     print("-----------------------------------------")
-    buyprice = round(df.Close.iloc[-1],2)
-    buyprice_limit = buyprice * 0.995
-    tp = round(buyprice * 1.04,2)
-    sl = round(buyprice * 0.98,2)
+    price = round(df.Close.iloc[-1],2)
+    buyprice_limit = price * 0.995
+    tp = round(price * 1.04,2)
+    sl = round(price * 0.98,2)
 
 
     if df.Buy.iloc[-1]:
@@ -155,7 +152,7 @@ def strategy_long(qty, open_position = False):
 
             print("-----------------------------------------")
 
-            print(f"Buyprice: {buyprice}")
+            print(f"Limit Buyprice: {buyprice_limit}")
 
             print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
@@ -176,31 +173,37 @@ def strategy_long(qty, open_position = False):
             print(f"Order id: {sol_order_id}")
             print("---------------------------------------------------")
 
-            # Set the expiration time for the order (1 hour from now)
-            expiration_time = int(time.time()) + 600
+            # Set the expiration time for the order (5 mins from now)
+            expiration_time = int(time.time()) + 50
 
             # Wait until the expiration time
             while int(time.time()) < expiration_time:
+
                 # Check the status of the order
-                
                 order_info = session.get_active_order(symbol= "SOLUSDT")
                 order_status = str(order_info['result']["data"][0]['order_status'])
                 print(order_status)
                 
                 # If the order has been filled or cancelled, exit the loop
                 if order_status in ["Filled", "Cancelled"]:
+                    open_position = True
                     break
 
                 # Sleep for 1 second before checking the order status again
                 time.sleep(10)
+            
 
+            if int(time.time()) > expiration_time:
+                order_info = session.get_active_order(symbol= "SOLUSDT")
+                order_status = str(order_info['result']["data"][0]['order_status'])
+                print(order_status)
+                print("----------------------------------------------------------------------")
 
-
-
-            open_position = True
+                if order_status in ["New"]: 
+                    cancel_order = session.cancel_all_active_orders(symbol= "SOLUSDT")
+                    print(cancel_order)
         
         except: 
-            time.sleep(20)
             print("Error")
 
     while open_position:
@@ -208,16 +211,16 @@ def strategy_long(qty, open_position = False):
                    
         df = get5minutedata()
         apply_technicals(df)
-        print(f"Buyprice: {buyprice}" + '               Close: ' + str(df.Close.iloc[-1]))
+        print(f"Buyprice: {buyprice_limit}" + '               Close: ' + str(df.Close.iloc[-1]))
         print(f'Target: ' + str(tp) + "                  Stop: " + str(sl))
-        print(f'RSI Target: {rsi_exit}' + '                RSI: ' + str(df.RSI.iloc[-1]))
+        print(f'RSI: ' + str(df.RSI.iloc[-1]))
         print("---------------------------------------------------")
 
-        if df.Close[-1] >= sl:
+        if df.Close[-1] <= sl:
             print("Closed Position")
             open_position = False
 
-            mail_content_SL = "SOL Short SL"
+            mail_content_SL = "SOL Long SL"
             message_SL.attach(MIMEText(mail_content_SL, 'plain'))
 
             # Create SMTP session for sending the mail
@@ -231,11 +234,11 @@ def strategy_long(qty, open_position = False):
             session_mail.quit()
             break
 
-        elif df.Close[-1] <= tp: 
+        elif df.Close[-1] >= tp: 
             print("Closed Position")
             open_position = False
 
-            mail_content_TP = "SOL Short TP"
+            mail_content_TP = "SOL Long TP"
             message_TP.attach(MIMEText(mail_content_TP, 'plain'))
 
             # Create SMTP session for sending the mail
@@ -248,53 +251,6 @@ def strategy_long(qty, open_position = False):
             session_mail.sendmail(sender_address, receiver_address, text)
             session_mail.quit()
             break
-
-        elif df.RSI[-1] < rsi_exit:
-            
-            try: 
-                print(session.place_active_order(symbol="SOLUSDT",
-                                                side="Buy",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=True,
-                                                close_on_trigger=False))  
-
-                print("---------------------------------------------------")
-                print("Closed position")
-                open_position = False
-                
-                mail_content_RSI = f"SOL Short Closed - RSI < {rsi_exit}"
-                message_RSI.attach(MIMEText(mail_content_RSI, 'plain'))
-
-                # Create SMTP session for sending the mail
-                session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-                session_mail.starttls()  # enable security
-
-                # login with mail_id and password
-                session_mail.login(sender_address, sender_pass)
-                text = message_RSI.as_string()
-                session_mail.sendmail(sender_address, receiver_address, text)
-                session_mail.quit()
-                break
-
-            except: 
-                print("Position already closed")
-                open_position = False
-                
-                mail_content_Others = "Position Closed"
-                message_Others.attach(MIMEText(mail_content_Others, 'plain'))
-
-                # Create SMTP session for sending the mail
-                session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-                session_mail.starttls()  # enable security
-
-                # login with mail_id and password
-                session_mail.login(sender_address, sender_pass)
-                text = message_Others.as_string()
-                session_mail.sendmail(sender_address, receiver_address, text)
-                session_mail.quit()
-                break
 
 
 # In[10]:
