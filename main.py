@@ -3,6 +3,15 @@
 
 # In[1]:
 
+# Variables
+SYMBOL = "ETHUSDT"
+INTERVAL = "5m"
+RSI_ENTER = 78
+RSI_EXIT = 24
+RSI_WINDOW = 14
+STOCH_SMA = 3
+REWARD = 0.93 #7%
+RISK = 1.03   #3%
 
 import pandas as pd
 import numpy as np
@@ -58,7 +67,7 @@ session = usdt_perpetual.HTTP(
 
 #This function gets Real ETH Price Data and creates a smooth dataframe that refreshes every 5 minutes
 def get5minutedata():
-    frame = pd.DataFrame(session_auth.query_kline(symbol="ETHUSDT", interval="5m")["result"])
+    frame = pd.DataFrame(session_auth.query_kline(symbol=SYMBOL, interval=INTERVAL)["result"])
     frame = frame.iloc[:,: 6]
     frame.columns = ['Time', 'Open', 'High', 'Low', 'Close', 'Volume']
     frame = frame.set_index("Time")
@@ -72,21 +81,14 @@ def get5minutedata():
 
 #Function to apply some technical indicators from the ta library
 def apply_technicals(df):
-    df["K"] = ta.momentum.stochrsi(df.Close, window= 14)
+    df["K"] = ta.momentum.stochrsi(df.Close, window= RSI_WINDOW)
     #df["D"] = df["K"].rolling(3).mean()
-    df["RSI"] = ta.momentum.rsi(df.Close, window = 14)
+    df["RSI"] = ta.momentum.rsi(df.Close, window = RSI_WINDOW)
     df.dropna(inplace=True)
 
 
 
 # In[7]:
-
-# Variables
-rsi_enter = 77
-rsi_exit = 24
-
-
-# In[8]:
 
 
 class Signals:
@@ -98,7 +100,7 @@ class Signals:
     def get_trigger(self):
         df_2 = pd.DataFrame()
         for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) > rsi_enter)
+            mask = (self.df["RSI"].shift(i) > RSI_ENTER)
             df_2 = df_2.append(mask, ignore_index = True)
         return df_2.sum(axis= 0)
     
@@ -109,18 +111,37 @@ class Signals:
 
 
 
-# In[9]:
+# In[8]:
 
 
-#The mail addresses and password
+#The sender mail address and password
 sender_address = 'pythontradingbot11@gmail.com'
 
-#Setup the MIME
-message = MIMEMultipart() 
-message_SL = MIMEMultipart()
-message_TP = MIMEMultipart()
-message_RSI = MIMEMultipart()
-message_Others = MIMEMultipart()
+#Function to automate mails
+def send_email(subject, result = None, buy_price = None, exit_price = None, stop = None):
+    content = ""
+    if result is not None:
+      content += f"Result: {result}\n"
+    if buy_price is not None:
+      content += f"Buy Price: {buy_price}\n"
+    if exit_price is not None:
+      content += f"TP Price: {exit_price}\n"
+    if stop is not None:
+      content += f"SL Price: {stop}\n"
+
+    message = MIMEMultipart()
+    message['From'] = sender_address
+    message['To'] = receiver_address
+    message['Subject'] = subject 
+    message.attach(MIMEText(content, 'plain'))
+    
+    #Create SMTP session for sending the mail
+    session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
+    session_mail.starttls()  # enable security
+    session_mail.login(sender_address, sender_pass)
+    text = message.as_string()
+    session_mail.sendmail(sender_address, receiver_address, text)
+    session_mail.quit()
 
 
 # In[10]:
@@ -133,125 +154,62 @@ def strategy_short(qty, open_position = False):
     inst.decide()
     print(f'Current Time is ' + str(df.index[-1]))
     print(f'Current Close is '+str(df.Close.iloc[-1]))
-    print(f'Current RSI is ' + str(df.RSI.iloc[-1]))
+    print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
     print("-----------------------------------------")
-    buyprice = round(df.Close.iloc[-1],2)
-    tp = round(buyprice * 0.93,2)
-    sl = round(buyprice * 1.03,2)
 
     if df.Sell.iloc[-1]:
-        try: 
-            mail_content = "ETH Open Short"
-            message.attach(MIMEText(mail_content, 'plain'))
+        buyprice = round(df.Close.iloc[-1],2)
+        tp = round(buyprice * REWARD,2)
+        sl = round(buyprice * RISK,2)
+        send_email(subject= "ETH Open Short", buy_price=buyprice, exit_price=tp, stop=sl)
         
-            # Create SMTP session for sending the mail
-            session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-            session_mail.starttls()  # enable security
+        print("-----------------------------------------")
 
-            # login with mail_id and password
-            session_mail.login(sender_address, sender_pass)
-            text = message.as_string()
-            session_mail.sendmail(sender_address, receiver_address, text)
-            session_mail.quit()
+        print(f"Buyprice: {buyprice}")
 
-            print("-----------------------------------------")
+        print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-            print(f"Buyprice: {buyprice}")
+        order = session.place_active_order(symbol="ETHUSDT",
+                                            side="Sell",
+                                            order_type="Market",
+                                            qty= qty,
+                                            time_in_force="GoodTillCancel",
+                                            reduce_only=False,
+                                            close_on_trigger=False,
+                                            take_profit = tp,
+                                            stop_loss = sl)
+        print(order)
 
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+        eth_order_id = str(order['result']['order_id'])
+        print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+        print(f"Order id: {eth_order_id}") 
+        print("---------------------------------------------------")
 
-            order = session.place_active_order(symbol="ETHUSDT",
-                                                side="Sell",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=False,
-                                                close_on_trigger=False,
-                                                take_profit = tp,
-                                                stop_loss = sl)
-            print(order)
+        open_position = True
 
-            eth_order_id = str(order['result']['order_id'])
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print(f"Order id: {eth_order_id}") 
-            print("---------------------------------------------------")
-
-            open_position = True
-        except:
-            time.sleep(20)
-
-            print("-----------------------------------------")
-
-            print(f"Buyprice: {buyprice}")
-
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-
-            order = session.place_active_order(symbol="ETHUSDT",
-                                                side="Sell",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=False,
-                                                close_on_trigger=False,
-                                                take_profit = tp,
-                                                stop_loss = sl)
-            print(order)
-
-            eth_order_id = str(order['result']['order_id'])
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print(f"Order id: {eth_order_id}") 
-            print("---------------------------------------------------")
-
-            open_position = True
-
-
-    while open_position:
-        time.sleep(30)
-                            
+    while open_position:                          
         df = get5minutedata()
         apply_technicals(df)
         print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
         print(f'Target: ' + str(tp) + "               Stop: " + str(sl))
-        print(f'RSI Target: 24' + '                RSI: ' + str(df.RSI.iloc[-1]))
+        print(f'RSI Target: {RSI_EXIT}                RSI: {round(df.RSI.iloc[-1], 2)}')
         print("---------------------------------------------------")
 
         if df.Close[-1] >= sl:
+            result = (buyprice - sl)*qty
             print("Closed Position")
             open_position = False
-
-            mail_content_SL = "ETH Short SL"
-            message_SL.attach(MIMEText(mail_content_SL, 'plain'))
-
-            # Create SMTP session for sending the mail
-            session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-            session_mail.starttls()  # enable security
-
-            # login with mail_id and password
-            session_mail.login(sender_address, sender_pass)
-            text = message_SL.as_string()
-            session_mail.sendmail(sender_address, receiver_address, text)
-            session_mail.quit()
-            break
+            send_email(sybject= "ETH Short SL", result=result, buy_price=buyprice, exit_price=sl)
+            exit()
 
         elif df.Close[-1] <= tp: 
+            result = (buyprice - tp)*qty
             print("Closed Position")
             open_position = False
-
-            mail_content_TP = "ETH Short TP"
-            message_TP.attach(MIMEText(mail_content_TP, 'plain'))
-
-            # Create SMTP session for sending the mail
-            session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-            session_mail.starttls()  # enable security
-            
-            # login with mail_id and password
-            session_mail.login(sender_address, sender_pass)
-            text = message_TP.as_string()
-            session_mail.sendmail(sender_address, receiver_address, text)
-            session_mail.quit()
+            send_email(sybject= "ETH Short TP", result=result, buy_price=buyprice, exit_price=tp)
             break
 
-        elif df.RSI[-1] < rsi_exit:
+        elif df.RSI[-1] < RSI_EXIT:
             
             try: 
                 print(session.place_active_order(symbol="ETHUSDT",
@@ -263,38 +221,16 @@ def strategy_short(qty, open_position = False):
                                                 close_on_trigger=False))  
 
                 print("---------------------------------------------------")
+                rsi_exit_price = round(df.Close.iloc[-1],2)
+                result= (buyprice -rsi_exit_price)*qty  
                 print("Closed position")
                 open_position = False
-                mail_content_RSI = "ETH Short Closed - RSI < 24"
-                message_RSI.attach(MIMEText(mail_content_RSI, 'plain'))
-
-                # Create SMTP session for sending the mail
-                session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-                session_mail.starttls()  # enable security
-
-                # login with mail_id and password
-                session_mail.login(sender_address, sender_pass)
-                text = message_RSI.as_string()
-                session_mail.sendmail(sender_address, receiver_address, text)
-                session_mail.quit()
+                send_email(subject= f"ETH Short Closed - RSI < {RSI_EXIT}", result=result, buy_price=buyprice, exit_price=rsi_exit_price)
                 break
 
             except: 
                 print("Position already closed")
-                open_position = False
-                
-                mail_content_Others = "Position Closed"
-                message_Others.attach(MIMEText(mail_content_Others, 'plain'))
-
-                # Create SMTP session for sending the mail
-                session_mail = smtplib.SMTP('smtp.gmail.com', 587)  # use gmail with port
-                session_mail.starttls()  # enable security
-
-                # login with mail_id and password
-                session_mail.login(sender_address, sender_pass)
-                text = message_Others.as_string()
-                session_mail.sendmail(sender_address, receiver_address, text)
-                session_mail.quit()
+                send_email(subject="Position already Closed")             
                 break
 
 
