@@ -187,7 +187,8 @@ def strategy_short(qty, open_position = False):
 
         open_position = True
 
-    while open_position:                          
+    while open_position:
+        time.sleep(10)                          
         df = get5minutedata()
         apply_technicals(df)
         print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
@@ -239,7 +240,7 @@ def strategy_short(qty, open_position = False):
 
 while True: 
     strategy_short(0.7)
-    time.sleep(30)
+    time.sleep(15)
 
 
 
