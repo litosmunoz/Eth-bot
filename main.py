@@ -169,7 +169,7 @@ def strategy_short(qty, open_position = False):
 
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-        order = session.place_active_order(symbol="ETHUSDT",
+        order = session.place_active_order(symbol=SYMBOL,
                                             side="Sell",
                                             order_type="Market",
                                             qty= qty,
@@ -197,14 +197,14 @@ def strategy_short(qty, open_position = False):
         print("---------------------------------------------------")
 
         if df.Close[-1] >= sl:
-            result = (buyprice - sl)*qty
+            result = round((buyprice - sl)*qty,2)
             print("Closed Position")
             open_position = False
             send_email(sybject= "ETH Short SL", result=result, buy_price=buyprice, exit_price=sl)
             exit()
 
         elif df.Close[-1] <= tp: 
-            result = (buyprice - tp)*qty
+            result = round((buyprice - tp)*qty,2)
             print("Closed Position")
             open_position = False
             send_email(sybject= "ETH Short TP", result=result, buy_price=buyprice, exit_price=tp)
@@ -223,7 +223,7 @@ def strategy_short(qty, open_position = False):
 
                 print("---------------------------------------------------")
                 rsi_exit_price = round(df.Close.iloc[-1],2)
-                result= (buyprice -rsi_exit_price)*qty  
+                result= round((buyprice -rsi_exit_price)*qty,2)  
                 print("Closed position")
                 open_position = False
                 send_email(subject= f"ETH Short Closed - RSI < {RSI_EXIT}", result=result, buy_price=buyprice, exit_price=rsi_exit_price)
