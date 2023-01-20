@@ -239,7 +239,7 @@ def strategy_short(qty, open_position = False):
 
 
 while True: 
-    strategy_short(0.7)
+    strategy_short(0.6)
     time.sleep(15)
 
 
