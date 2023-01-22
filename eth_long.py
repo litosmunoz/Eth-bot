@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 # Variables
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
@@ -28,11 +26,11 @@ import warnings
 warnings.simplefilter("ignore")
 
 
-# In[2]:
+# In[1]::
 load_dotenv()
 
 
-# In[3]:
+# In[2]:
 
 
 #Loading my Bybit's API keys from the dotenv file
@@ -41,7 +39,7 @@ api_secret_pw = os.getenv('api_secret_bot_IP')
 sender_pass = os.getenv('mail_key')
 receiver_address = os.getenv('mail')
 
-# In[4]:
+# In[3]:
 
 
 #Establishing Connection with the API (SPOT)
@@ -61,7 +59,7 @@ session = usdt_perpetual.HTTP(
 )
 
 
-# In[5]:
+# In[4]:
 
 
 #This function gets Real ETH Price Data and creates a smooth dataframe that refreshes every 5 minutes
@@ -75,7 +73,7 @@ def get5minutedata():
     return frame
 
 
-# In[6]:
+# In[5]:
 
 
 #Function to apply some technical indicators from the ta library
@@ -86,29 +84,8 @@ def apply_technicals(df):
     df.dropna(inplace=True)
 
 
-# In[7]:
+# In[6]:
 
-
-class Signals:
-    def __init__(self, df, lags):
-        self.df = df
-        self.lags = lags
-    
-    #Checking if we have a trigger in the last n time steps
-    def get_trigger(self):
-        df_2 = pd.DataFrame()
-        for i in range(self.lags + 1):
-            mask = (self.df["RSI"].shift(i) < RSI_THRESHOLD_LOW)
-            df_2 = df_2.append(mask, ignore_index = True)
-        return df_2.sum(axis= 0)
-    
-    # Is the trigger fulfilled and are all buying conditions fulfilled?
-    def decide(self):
-         self.df["trigger"] = np.where(self.get_trigger(), 1, 0)
-         self.df["Buy"]= np.where((self.df.trigger), 1, 0)
-
-
-# In[8]:
 
 #The sender mail address and password
 sender_address = 'pythontradingbot11@gmail.com'
@@ -140,34 +117,37 @@ def send_email(subject, result = None, buy_price = None, exit_price = None, stop
     session_mail.quit()
 
 
-# In[10]:
+# In[7]:
 
 
 def strategy_long(qty = QUANTITY, open_position = False):
     df= get5minutedata()
     apply_technicals(df)
-    inst = Signals(df, 0)
-    inst.decide()
     print(f'Current Time is ' + str(df.index[-1]))
     print(f'Current Close is '+str(df.Close.iloc[-1]))
     print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
     print("-----------------------------------------")
 
-    if df.Buy.iloc[-1]:
-        # Monitor the RSI and wait for it to reach the threshold of 20
-        previous_price = df['Close'][-1]
+    '''The following algorithm checks if the RSI is less than {RSI_THRESHOLD_LOW} ex. 20 and then it enters a while loop. 
+    Inside the while loop, it continuously monitors the RSI and the close price of Ethereum. 
+    Once the RSI increases to above {RSI_THRESHOLD_HIGH} ex. 30 and the close price of Ethereum makes a lower low, 
+    it enters a long position in Ethereum using the session.place_active_order() function and sends an email to the user.'''
+
+    if df.RSI.iloc[-1] < RSI_THRESHOLD_LOW:
+        previous_price = round(df.Close.iloc[-1], 2)
         start_time = time.time()
         while (time.time() - start_time) < (MINUTES * 60):
-            time.sleep(30) # sleep for 1 minute
-
-            # If the RSI increases to 30, check if the price makes a lower low
+            time.sleep(30) # sleep for 30 secs
+            df = get5minutedata()
+            apply_technicals(df)
             if df["RSI"][-1] >= RSI_THRESHOLD_HIGH and df['Close'][-1] < previous_price:
-                # If the price makes a lower low, enter a long position in Ethereum
+                # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
                 print('Enter a long position in Ethereum')
                 price = round(df.Close.iloc[-1],2)
                 tp = round(price * REWARD,2)
                 sl = round(price * RISK,2)
                 send_email(subject = f"{SYMBOL} Open Long", buy_price=price, exit_price=tp, stop=sl)
+
                 print("-----------------------------------------")
 
                 print(f"Buyprice: {price}")
@@ -186,6 +166,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
                 print(order)
                 open_position = True
                 break
+            
             else:
                 print("RSI has reached threshold but the price is not making a lower low, no action taken")
                 print("----------------------------------------------------------------------------------")
@@ -206,21 +187,21 @@ def strategy_long(qty = QUANTITY, open_position = False):
         print(f'Current Profit : {current_profit}')
         print("-----------------------------------------------------")
 
-        if df.Close[-1] <= sl: 
+        if current_price <= sl: 
             result = round((sl - price) * qty,2)
             print("Closed Position")
             send_email(subject=f"{SYMBOL} Long SL", result = result, buy_price=price, stop= sl)
             open_position = False
             exit()
         
-        elif df.Close[-1] >= tp:
+        elif current_price >= tp:
             result= round((tp - price) * qty, 2)
             print("Closed Position")
             send_email(subject =f"{SYMBOL} Long TP", result = result, buy_price=price, exit_price= tp)
             open_position = False
             break
 
-# In[11]:
+# In[8]:
 
 
 while True: 
