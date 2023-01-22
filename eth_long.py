@@ -166,6 +166,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
                                             side="Buy",
                                             order_type="Limit",
                                             qty= qty,
+                                            price = buyprice_limit,
                                             time_in_force="GoodTillCancel",
                                             reduce_only=False,
                                             close_on_trigger=False,
