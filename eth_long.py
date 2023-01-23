@@ -191,19 +191,19 @@ def strategy_long(qty = QUANTITY, open_position = False):
 
         # Set the expiration time for the order (120 mins from now)
         expiration_time = int(time.time()) + (MINUTES*60)
-        time_runner = float((expiration_time - int(time.time()))/ 60)
-
+        
         # Wait until the expiration time
         while int(time.time()) < expiration_time:
             # Sleep for 10 seconds before checking the order status again
             time.sleep(10)
-
+            # Update time_runner
+            time_runner = float((expiration_time - int(time.time()))/ 60)
             # Check the status of the order
             order_info = session.get_active_order(symbol= SYMBOL)
             order_status = str(order_info['result']["data"][0]['order_status'])
             print(f'Order Status: {order_status}')
             print(f'Time (mins) remaining for the order to be filled : {time_runner}')
-            print("------------------------")
+            print("-------------------------------------------------------------------")
 
             # If the order has been filled or cancelled, exit the loop
             if order_status == "Filled":
