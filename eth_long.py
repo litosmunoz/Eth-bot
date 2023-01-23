@@ -141,13 +141,15 @@ def strategy_long(qty = QUANTITY, open_position = False):
 
     if df.RSI.iloc[-1] < RSI_THRESHOLD_LOW:
         previous_price = round(df.Close.iloc[-1], 2)
-        start_time = time.time()
-        while (time.time() - start_time) < (MINUTES * 60):
+        start_time = int(time.time())
+        while (int(time.time()) - start_time) < (MINUTES * 60):
             time.sleep(30) # sleep for 30 secs
             df = get5minutedata()
             apply_technicals(df)
+            print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
+            print(f"Searching for RSI > {RSI_THRESHOLD_HIGH} and a Lower Low than {previous_price}")
 
-            if df["RSI"][-1] >= RSI_THRESHOLD_HIGH and df['Close'][-1] < previous_price:
+            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price:
                 # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
                 print('Consider entering a long position in Ethereum')
                 price = round(df.Close.iloc[-1],2)
@@ -173,51 +175,50 @@ def strategy_long(qty = QUANTITY, open_position = False):
                                             take_profit = tp,
                                             stop_loss = sl)
                 print(order)
+                break
+                
+    # Set the expiration time for the order (120 mins from now)
+    expiration_time = int(time.time()) + (MINUTES*60)
+    time_runner = float((expiration_time - int(time.time()))/ 60)
 
-                # Set the expiration time for the order (120 mins from now)
-                expiration_time = int(time.time()) + (MINUTES*60)
-                time_runner = float((expiration_time - int(time.time()))/ 60)
+    # Wait until the expiration time
+    while int(time.time()) < expiration_time:
+        # Sleep for 10 seconds before checking the order status again
+        time.sleep(10)
 
-                # Wait until the expiration time
-                while int(time.time()) < expiration_time:
-                    # Sleep for 10 seconds before checking the order status again
-                    time.sleep(10)
+        # Check the status of the order
+        order_info = session.get_active_order(symbol= SYMBOL)
+        order_status = str(order_info['result']["data"][0]['order_status'])
+        print(f'Order Status: {order_status}')
+        print(f'Time (mins) remaining for the order to be filled : {time_runner}')
+        print("------------------------")
 
-                    # Check the status of the order
-                    order_info = session.get_active_order(symbol= SYMBOL)
-                    order_status = str(order_info['result']["data"][0]['order_status'])
-                    print(f'Order Status: {order_status}')
-                    print(f'Time (mins) remaining for the order to be filled : {time_runner}')
-                    print("------------------------")
-
-                    # If the order has been filled or cancelled, exit the loop
-                    if order_status in ["Filled"]:
-                        open_position = True
-                        send_email(subject=f"{SYMBOL} Limit Order Activated")
-                        break
-                    elif order_status in ["Cancelled"]:
-                        open_position = False 
-                        send_email(subject=f"{SYMBOL} Order cancelled manually")
-                        break
-            
+        # If the order has been filled or cancelled, exit the loop
+        if order_status in ["Filled"]:
+            open_position = True
+            send_email(subject=f"{SYMBOL} Limit Order Activated")
+            break
+        elif order_status in ["Cancelled"]:
+            open_position = False 
+            send_email(subject=f"{SYMBOL} Order cancelled manually")
+            break
         
-                if int(time.time()) > expiration_time:
-                    order_info = session.get_active_order(symbol= SYMBOL)
-                    order_status = str(order_info['result']["data"][0]['order_status'])
-                    print(order_status)
-                    print("----------------------------------------------------------------------")
 
-                    if order_status not in ["Filled"]: 
-                        try:
-                            cancel_order = session.cancel_all_active_orders(symbol= SYMBOL)
-                            print(cancel_order)
-                            send_email(subject= f"{SYMBOL} Limit Order desactivated...")
-                            open_position= False
-                        except: 
-                            print("No orders need to be cancelled")
-                        
-        else:
-            print("Monitoring period has ended, no action taken")
+    else:
+        order_info = session.get_active_order(symbol= SYMBOL)
+        order_status = str(order_info['result']["data"][0]['order_status'])
+        print(order_status)
+        print("----------------------------------------------------------------------")
+
+        if order_status not in ["Filled"]: 
+            try:                        
+                cancel_order = session.cancel_all_active_orders(symbol= SYMBOL)
+                print(cancel_order)
+                send_email(subject= f"{SYMBOL} Limit Order desactivated...")
+                open_position= False
+            except: 
+                print("No orders need to be cancelled")
+            
 
     while open_position:
         time.sleep(10)
