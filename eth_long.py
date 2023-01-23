@@ -144,7 +144,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
     Once the RSI increases to above {RSI_THRESHOLD_HIGH} ex. 30 and the close price of Ethereum makes a lower low, 
     it creates a limit order to enters a long position in Ethereum using the session.place_active_order() function and sends an email to the user.'''
 
-    if df.RSI.iloc[-1] < RSI_THRESHOLD_LOW:
+    if round(df.RSI.iloc[-1], 2) < RSI_THRESHOLD_LOW:
         previous_price = round(df.Close.iloc[-1], 2)
         start_time = int(time.time())
         while (int(time.time()) - start_time) < (MINUTES * 60):
@@ -185,9 +185,10 @@ def strategy_long(qty = QUANTITY, open_position = False):
                 break
 
         else:
-            print("120 minutes have passed. Restarting program.")
-            
-                
+            print(f"{MINUTES} minutes have passed. Restarting program.")
+            return strategy_long()
+
+
         # Set the expiration time for the order (120 mins from now)
         expiration_time = int(time.time()) + (MINUTES*60)
         time_runner = float((expiration_time - int(time.time()))/ 60)
@@ -211,7 +212,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
                 break
             elif order_status in ["Cancelled"]:
                 open_position = False 
-                send_email(subject=f"{SYMBOL} Order cancelled manually")
+                send_email(subject=f"{SYMBOL} Order Cancelled Manually")
                 break
         
         else:
