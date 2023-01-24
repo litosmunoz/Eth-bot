@@ -11,7 +11,8 @@ STOCH_SMA = 3
 REWARD = 1.03
 RISK = 0.985
 LIMIT_ORDER = 0.99
-MINUTES = 120
+MINUTES_DIVERGENCE = 120
+MINUTES_LIMIT_ORDER = 200
 QUANTITY = 0.45
 
 import logging
@@ -124,7 +125,12 @@ def send_email(subject, result = None, buy_price = None, exit_price = None, stop
 
 
 # In[7]:
-
+f'''It starts by getting the 5-minute data for Ethereum and applying certain technical indicators to it.
+It then checks if the value of the 'Buy' column in the last row of the dataframe is True.
+If it is True, it enters a while loop where it continuously monitors the RSI and close price of Ethereum.
+If the RSI increases to above a certain threshold and the close price of Ethereum makes a lower low, it creates a limit order to enter a long position in Ethereum and sends an email to the user.
+If {MINUTES_DIVERGENCE} minutes pass and the condition has not been met, the program restarts.
+If the condition is met, the code monitors the status of the order and cancels the order if it has not been filled within {MINUTES_LIMIT_ORDER} minutes.'''
 
 def strategy_long(qty = QUANTITY, open_position = False):
     df= get5minutedata()
@@ -139,15 +145,22 @@ def strategy_long(qty = QUANTITY, open_position = False):
     Once the RSI increases to above {RSI_THRESHOLD_HIGH} ex. 30 and the close price of Ethereum makes a lower low, 
     it creates a limit order to enters a long position in Ethereum using the session.place_active_order() function and sends an email to the user.'''
 
-    if df.RSI.iloc[-1] < RSI_THRESHOLD_LOW:
+    if round(df.RSI.iloc[-1], 2) < RSI_THRESHOLD_LOW:
         previous_price = round(df.Close.iloc[-1], 2)
-        start_time = time.time()
-        while (time.time() - start_time) < (MINUTES * 60):
-            time.sleep(30) # sleep for 30 secs
+        start_time = int(time.time())
+        while (int(time.time()) - start_time) < (MINUTES_DIVERGENCE * 60):
             df = get5minutedata()
             apply_technicals(df)
+            time_runner = (MINUTES_DIVERGENCE * 60) - ((int(time.time()) - start_time))
+            remaining_minutes = int(time_runner / 60)
+            print(f'Current Close is '+str(df.Close.iloc[-1]))
+            print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
+            print(f"Searching for RSI > {RSI_THRESHOLD_HIGH} and a Lower Low than {previous_price}")
+            print("Remaining minutes: ", remaining_minutes)
+            print("-------------------------------------------------------------------------------")
+            time.sleep(30) # sleep for 30 secs
 
-            if df["RSI"][-1] >= RSI_THRESHOLD_HIGH and df['Close'][-1] < previous_price:
+            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price:
                 # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
                 print('Consider entering a long position in Ethereum')
                 price = round(df.Close.iloc[-1],2)
@@ -166,6 +179,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
                                             side="Buy",
                                             order_type="Limit",
                                             qty= qty,
+                                            price = buyprice_limit,
                                             time_in_force="GoodTillCancel",
                                             reduce_only=False,
                                             close_on_trigger=False,
@@ -173,50 +187,55 @@ def strategy_long(qty = QUANTITY, open_position = False):
                                             stop_loss = sl)
                 print(order)
 
-                # Set the expiration time for the order (120 mins from now)
-                expiration_time = int(time.time()) + (MINUTES*60)
-                time_runner = float((expiration_time - int(time.time()))/ 60)
+                break
 
-                # Wait until the expiration time
-                while int(time.time()) < expiration_time:
-                    # Sleep for 10 seconds before checking the order status again
-                    time.sleep(10)
-
-                    # Check the status of the order
-                    order_info = session.get_active_order(symbol= SYMBOL)
-                    order_status = str(order_info['result']["data"][0]['order_status'])
-                    print(f'Order Status: {order_status}')
-                    print(f'Time (mins) remaining for the order to be filled : {time_runner}')
-                    print("------------------------")
-
-                    # If the order has been filled or cancelled, exit the loop
-                    if order_status in ["Filled"]:
-                        open_position = True
-                        send_email(subject=f"{SYMBOL} Limit Order Activated")
-                        break
-                    elif order_status in ["Cancelled"]:
-                        open_position = False 
-                        send_email(subject=f"{SYMBOL} Order cancelled manually")
-                        break
-            
-        
-                if int(time.time()) > expiration_time:
-                    order_info = session.get_active_order(symbol= SYMBOL)
-                    order_status = str(order_info['result']["data"][0]['order_status'])
-                    print(order_status)
-                    print("----------------------------------------------------------------------")
-
-                    if order_status not in ["Filled"]: 
-                        try:
-                            cancel_order = session.cancel_all_active_orders(symbol= SYMBOL)
-                            print(cancel_order)
-                            send_email(subject= f"{SYMBOL} Limit Order desactivated...")
-                            open_position= False
-                        except: 
-                            print("No orders need to be cancelled")
-                        
         else:
-            print("Monitoring period has ended, no action taken")
+            print(f"{MINUTES_DIVERGENCE} minutes have passed. Restarting program.")
+            return strategy_long()
+
+
+        # Set the expiration time for the order (200 mins from now)
+        expiration_time = int(time.time()) + (MINUTES_LIMIT_ORDER*60)
+        
+        # Wait until the expiration time
+        while int(time.time()) < expiration_time:
+            # Sleep for 10 seconds before checking the order status again
+            time.sleep(10)
+            # Update time_runner
+            time_runner = int((expiration_time - int(time.time()))/ 60)
+            # Check the status of the order
+            order_info = session.get_active_order(symbol= SYMBOL)
+            order_status = str(order_info['result']["data"][0]['order_status'])
+            print(f'Order Status: {order_status}')
+            print("Remaining minutes: ", time_runner)
+            print("---------------------------------")
+
+            # If the order has been filled or cancelled, exit the loop
+            if order_status == "Filled":
+                open_position = True
+                send_email(subject=f"{SYMBOL} Limit Order Filled")
+                break
+            elif order_status in ["Cancelled"]:
+                open_position = False 
+                send_email(subject=f"{SYMBOL} Order Cancelled Manually")
+                break
+        
+        else:
+            order_info = session.get_active_order(symbol= SYMBOL)
+            order_status = str(order_info['result']["data"][0]['order_status'])
+            print(order_status)
+            print("----------------------------------------------------------------------")
+            
+            if order_status not in ["Filled"]: 
+                try:
+                    cancel_order = session.cancel_all_active_orders(symbol= SYMBOL)
+                    print(cancel_order)
+                    send_email(subject= f"{SYMBOL} Limit Order has not been filled before the expiration time. Cancelling order...")
+                    open_position= False
+                    
+                except: 
+                    print("No orders need to be cancelled")
+        
 
     while open_position:
         time.sleep(10)
