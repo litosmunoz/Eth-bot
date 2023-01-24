@@ -14,6 +14,7 @@ RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 0.93 #7%
 RISK = 1.03   #3%
+QUANTITY = 0.55
 
 import pandas as pd
 import numpy as np
@@ -150,7 +151,7 @@ def send_email(subject, result = None, buy_price = None, exit_price = None, stop
 # In[9]:
 
 
-def strategy_short(qty, open_position = False):
+def strategy_short(qty = QUANTITY, open_position = False):
     df= get5minutedata()
     apply_technicals(df)
     inst = Signals(df, 1)
@@ -247,7 +248,7 @@ def strategy_short(qty, open_position = False):
 
 
 while True: 
-    strategy_short(0.6)
+    strategy_short(QUANTITY)
     time.sleep(15)
 
 
