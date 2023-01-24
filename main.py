@@ -7,6 +7,8 @@
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
 RSI_ENTER = 78
+D_ENTER = 0.75
+K_DIFF = 0.03
 RSI_EXIT = 24
 RSI_WINDOW = 14
 STOCH_SMA = 3
@@ -21,7 +23,7 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import os
 import time
-import ta 
+import ta
 import warnings
 warnings.simplefilter("ignore")
 
@@ -35,7 +37,7 @@ load_dotenv()
 # In[3]:
 
 
-#Loading my Bybit's API keys and mail info from the dotenv file
+#Loading my Bybit's API keys from the dotenv file
 api_key_pw = os.getenv('api_key_bot_IP')
 api_secret_pw = os.getenv('api_secret_bot_IP')
 sender_pass = os.getenv('mail_key')
@@ -61,11 +63,10 @@ session = usdt_perpetual.HTTP(
     api_secret= api_secret_pw
 )
 
-
 # In[5]:
 
 
-#This function gets Real ETH Price Data and creates a smooth dataframe that refreshes every 5 minutes
+#This function gets Real SOL Price Data and creates a smooth dataframe that refreshes every 5 minutes
 def get5minutedata():
     frame = pd.DataFrame(session_auth.query_kline(symbol=SYMBOL, interval=INTERVAL)["result"])
     frame = frame.iloc[:,: 6]
@@ -82,7 +83,7 @@ def get5minutedata():
 #Function to apply some technical indicators from the ta library
 def apply_technicals(df):
     df["K"] = ta.momentum.stochrsi(df.Close, window= RSI_WINDOW)
-    #df["D"] = df["K"].rolling(3).mean()
+    df["D"] = df["K"].rolling(STOCH_SMA).mean()
     df["RSI"] = ta.momentum.rsi(df.Close, window = RSI_WINDOW)
     df.dropna(inplace=True)
 
@@ -107,7 +108,9 @@ class Signals:
     # Is the trigger fulfilled and are all buying conditions fulfilled?
     def decide(self):
          self.df["trigger"] = np.where(self.get_trigger(), 1, 0)
-         self.df["Sell"]= np.where((self.df.trigger), 1, 0)
+         self.df["Sell"]= np.where((self.df.trigger) & 
+                                    (self.df["D"] > D_ENTER) &
+                                    (self.df["K"] + K_DIFF < self.df["D"]), 1, 0)
 
 
 
@@ -144,7 +147,7 @@ def send_email(subject, result = None, buy_price = None, exit_price = None, stop
     session_mail.quit()
 
 
-# In[10]:
+# In[9]:
 
 
 def strategy_short(qty, open_position = False):
@@ -161,8 +164,8 @@ def strategy_short(qty, open_position = False):
         buyprice = round(df.Close.iloc[-1],2)
         tp = round(buyprice * REWARD,2)
         sl = round(buyprice * RISK,2)
-        send_email(subject= "ETH Open Short", buy_price=buyprice, exit_price=tp, stop=sl)
-        
+        send_email(subject= f"{SYMBOL} Open Short", buy_price=buyprice, exit_price=tp, stop=sl)
+            
         print("-----------------------------------------")
 
         print(f"Buyprice: {buyprice}")
@@ -170,50 +173,55 @@ def strategy_short(qty, open_position = False):
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
         order = session.place_active_order(symbol=SYMBOL,
-                                            side="Sell",
-                                            order_type="Market",
-                                            qty= qty,
-                                            time_in_force="GoodTillCancel",
-                                            reduce_only=False,
-                                            close_on_trigger=False,
-                                            take_profit = tp,
-                                            stop_loss = sl)
+                                                side="Sell",
+                                                order_type="Market",
+                                                qty= qty,
+                                                time_in_force="GoodTillCancel",
+                                                reduce_only=False,
+                                                close_on_trigger=False,
+                                                take_profit = tp,
+                                                stop_loss = sl)
         print(order)
 
-        eth_order_id = str(order['result']['order_id'])
+        sol_order_id = str(order['result']['order_id'])
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-        print(f"Order id: {eth_order_id}") 
+        print(f"Order id: {sol_order_id}") 
         print("---------------------------------------------------")
 
         open_position = True
 
     while open_position:
-        time.sleep(10)                          
+        time.sleep(10)                
         df = get5minutedata()
         apply_technicals(df)
-        print(f"Buyprice: {buyprice}" + '             Close: ' + str(df.Close.iloc[-1]))
-        print(f'Target: ' + str(tp) + "               Stop: " + str(sl))
-        print(f'RSI Target: {RSI_EXIT}                RSI: {round(df.RSI.iloc[-1], 2)}')
+        current_price = round(df.Close.iloc[-1], 2)
+        current_profit = round((buyprice-current_price) * qty, 2)
+        print(f"Buyprice: {buyprice}" + '               Close: ' + str(df.Close.iloc[-1]))
+        print(f'Target: ' + str(tp) + "                  Stop: " + str(sl))
+        print(f"RSI: {round(df.RSI.iloc[-1], 2)}       K: {round(df.K.iloc[-1], 2)}       D: {round(df.D.iloc[-1], 2)}")
+        print(f'RSI Target: {RSI_EXIT}')
+        print(f"K < D: {round(df.K.iloc[-1], 2) > round(df.D.iloc[-1], 2)}")
+        print(f'Current Profit : {current_profit}')
         print("---------------------------------------------------")
 
         if df.Close[-1] >= sl:
-            result = round((buyprice - sl)*qty,2)
+            result = round((buyprice - sl)*qty, 2)
             print("Closed Position")
+            send_email(subject= f"{SYMBOL} Short SL", result=result, buy_price=buyprice, stop=sl)
             open_position = False
-            send_email(sybject= "ETH Short SL", result=result, buy_price=buyprice, exit_price=sl)
             exit()
 
         elif df.Close[-1] <= tp: 
-            result = round((buyprice - tp)*qty,2)
+            result = round((buyprice - tp)*qty, 2)
             print("Closed Position")
+            send_email(subject= f"{SYMBOL} Short TP", result=result, buy_price=buyprice, exit_price=tp)
             open_position = False
-            send_email(sybject= "ETH Short TP", result=result, buy_price=buyprice, exit_price=tp)
             break
 
         elif df.RSI[-1] < RSI_EXIT:
             
             try: 
-                print(session.place_active_order(symbol="ETHUSDT",
+                print(session.place_active_order(symbol=SYMBOL,
                                                 side="Buy",
                                                 order_type="Market",
                                                 qty= qty,
@@ -223,15 +231,15 @@ def strategy_short(qty, open_position = False):
 
                 print("---------------------------------------------------")
                 rsi_exit_price = round(df.Close.iloc[-1],2)
-                result= round((buyprice -rsi_exit_price)*qty,2)  
+                result= round((buyprice -rsi_exit_price)*qty, 2)
                 print("Closed position")
+                send_email(subject= f"{SYMBOL} Short Closed - RSI < {RSI_EXIT}", result=result, buy_price=buyprice, exit_price=rsi_exit_price)
                 open_position = False
-                send_email(subject= f"ETH Short Closed - RSI < {RSI_EXIT}", result=result, buy_price=buyprice, exit_price=rsi_exit_price)
                 break
 
             except: 
                 print("Position already closed")
-                send_email(subject="Position already Closed")             
+                send_email(subject=f"{SYMBOL} Position already Closed")             
                 break
 
 
