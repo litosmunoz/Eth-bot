@@ -158,7 +158,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
             print(f"Searching for RSI > {RSI_THRESHOLD_HIGH} and a Lower Low than {previous_price}")
             print("Remaining minutes: ", remaining_minutes)
             print("-------------------------------------------------------------------------------")
-            time.sleep(30) # sleep for 30 secs
+            time.sleep(60) # sleep for 60 secs
 
             if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price:
                 # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
@@ -238,7 +238,7 @@ def strategy_long(qty = QUANTITY, open_position = False):
         
 
     while open_position:
-        time.sleep(10)
+        time.sleep(15)
         df = get5minutedata()
         apply_technicals(df)
         current_price = round(df.Close.iloc[-1], 2)

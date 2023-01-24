@@ -184,15 +184,15 @@ def strategy_short(qty = QUANTITY, open_position = False):
                                                 stop_loss = sl)
         print(order)
 
-        sol_order_id = str(order['result']['order_id'])
+        eth_order_id = str(order['result']['order_id'])
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-        print(f"Order id: {sol_order_id}") 
+        print(f"Order id: {eth_order_id}") 
         print("---------------------------------------------------")
 
         open_position = True
 
     while open_position:
-        time.sleep(10)                
+        time.sleep(15)                
         df = get5minutedata()
         apply_technicals(df)
         current_price = round(df.Close.iloc[-1], 2)
@@ -249,7 +249,7 @@ def strategy_short(qty = QUANTITY, open_position = False):
 
 while True: 
     strategy_short(QUANTITY)
-    time.sleep(15)
+    time.sleep(60)
 
 
 
