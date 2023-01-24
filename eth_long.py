@@ -13,7 +13,7 @@ RISK = 0.985
 LIMIT_ORDER = 0.99
 MINUTES_DIVERGENCE = 120
 MINUTES_LIMIT_ORDER = 360
-QUANTITY = 0.45
+QUANTITY = 0.8
 
 import logging
 import pandas as pd

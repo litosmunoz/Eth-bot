@@ -14,7 +14,7 @@ RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 0.96 #4%
 RISK = 1.015  #1.5%
-QUANTITY = 0.7
+QUANTITY = 0.8
 
 import pandas as pd
 import numpy as np
