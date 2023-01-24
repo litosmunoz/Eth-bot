@@ -6,15 +6,15 @@
 # Variables
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
-RSI_ENTER = 72
+RSI_ENTER = 68
 D_ENTER = 0.75
 K_DIFF = 0.03
 RSI_EXIT = 24
 RSI_WINDOW = 14
 STOCH_SMA = 3
-REWARD = 0.93 #7%
-RISK = 1.03   #3%
-QUANTITY = 0.55
+REWARD = 0.96 #4%
+RISK = 1.015  #1.5%
+QUANTITY = 0.7
 
 import pandas as pd
 import numpy as np
