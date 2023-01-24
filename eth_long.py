@@ -150,8 +150,12 @@ def strategy_long(qty = QUANTITY, open_position = False):
         while (int(time.time()) - start_time) < (MINUTES * 60):
             df = get5minutedata()
             apply_technicals(df)
+            time_runner = (MINUTES * 60) - ((int(time.time()) - start_time))
+            remaining_minutes = int(time_runner / 60)
+            print(f'Current Close is '+str(df.Close.iloc[-1]))
             print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
             print(f"Searching for RSI > {RSI_THRESHOLD_HIGH} and a Lower Low than {previous_price}")
+            print("Remaining minutes: ", remaining_minutes)
             print("-------------------------------------------------------------------------------")
             time.sleep(30) # sleep for 30 secs
 
@@ -197,13 +201,13 @@ def strategy_long(qty = QUANTITY, open_position = False):
             # Sleep for 10 seconds before checking the order status again
             time.sleep(10)
             # Update time_runner
-            time_runner = float((expiration_time - int(time.time()))/ 60)
+            time_runner = int((expiration_time - int(time.time()))/ 60)
             # Check the status of the order
             order_info = session.get_active_order(symbol= SYMBOL)
             order_status = str(order_info['result']["data"][0]['order_status'])
             print(f'Order Status: {order_status}')
-            print(f'Time (mins) remaining for the order to be filled : {time_runner}')
-            print("-------------------------------------------------------------------")
+            print("Remaining minutes: ", time_runner)
+            print("---------------------------------")
 
             # If the order has been filled or cancelled, exit the loop
             if order_status == "Filled":
