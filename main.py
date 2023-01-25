@@ -9,7 +9,7 @@ INTERVAL = "5m"
 RSI_ENTER = 68
 D_ENTER = 0.75
 K_DIFF = 0.06
-RSI_EXIT = 24
+RSI_EXIT = 25
 RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 0.96 #4%
@@ -192,7 +192,7 @@ def strategy_short(qty = QUANTITY, open_position = False):
         open_position = True
 
     while open_position:
-        time.sleep(15)                
+        time.sleep(10)                
         df = get5minutedata()
         apply_technicals(df)
         current_price = round(df.Close.iloc[-1], 2)
@@ -249,7 +249,7 @@ def strategy_short(qty = QUANTITY, open_position = False):
 
 while True: 
     strategy_short(QUANTITY)
-    time.sleep(180)
+    time.sleep(120)
 
 
 
