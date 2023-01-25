@@ -8,13 +8,13 @@ SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
 RSI_ENTER = 68
 D_ENTER = 0.75
-K_DIFF = 0.03
+K_DIFF = 0.06
 RSI_EXIT = 24
 RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 0.96 #4%
 RISK = 1.015  #1.5%
-QUANTITY = 0.8
+QUANTITY = 0.7
 
 import pandas as pd
 import numpy as np
@@ -249,7 +249,7 @@ def strategy_short(qty = QUANTITY, open_position = False):
 
 while True: 
     strategy_short(QUANTITY)
-    time.sleep(60)
+    time.sleep(180)
 
 
 
