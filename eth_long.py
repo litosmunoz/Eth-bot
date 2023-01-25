@@ -13,7 +13,7 @@ RISK = 0.985
 LIMIT_ORDER = 0.99
 MINUTES_DIVERGENCE = 120
 MINUTES_LIMIT_ORDER = 360
-QUANTITY = 0.8
+QUANTITY = 0.6
 
 import logging
 import pandas as pd
@@ -252,14 +252,14 @@ def strategy_long(qty = QUANTITY, open_position = False):
         if current_price <= sl: 
             result = round((sl - price) * qty,2)
             print("Closed Position")
-            send_email(subject=f"{SYMBOL} Long SL", result = result, buy_price=price, stop= sl)
+            send_email(subject=f"{SYMBOL} Long SL", result = result, buy_price=buyprice_limit, stop= sl)
             open_position = False
             exit()
         
         elif current_price >= tp:
             result= round((tp - price) * qty, 2)
             print("Closed Position")
-            send_email(subject =f"{SYMBOL} Long TP", result = result, buy_price=price, exit_price= tp)
+            send_email(subject =f"{SYMBOL} Long TP", result = result, buy_price=buyprice_limit, exit_price= tp)
             open_position = False
             break
 
