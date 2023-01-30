@@ -13,7 +13,7 @@ RISK = 0.985
 LIMIT_ORDER = 0.99
 MINUTES_DIVERGENCE = 150
 MINUTES_LIMIT_ORDER = 360
-QUANTITY = 0.6
+
 
 import logging
 import pandas as pd
@@ -132,7 +132,7 @@ If the RSI increases to above a certain threshold and the close price of Ethereu
 If {MINUTES_DIVERGENCE} minutes pass and the condition has not been met, the program restarts.
 If the condition is met, the code monitors the status of the order and cancels the order if it has not been filled within {MINUTES_LIMIT_ORDER} minutes.'''
 
-def strategy_long(qty = QUANTITY, open_position = False):
+def strategy_long(qty, open_position = False):
     df= get5minutedata()
     apply_technicals(df)
     print(f'Current Time is ' + str(df.index[-1]))
@@ -269,5 +269,5 @@ def strategy_long(qty = QUANTITY, open_position = False):
 
 
 while True: 
-    strategy_long(QUANTITY)
+    strategy_long(0.6)
     time.sleep(15)
