@@ -173,21 +173,21 @@ def strategy_short(qty, open_position = False):
 
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-        order = session.place_active_order(symbol=SYMBOL,
-                                                side="Sell",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=False,
-                                                close_on_trigger=False,
-                                                take_profit = tp,
-                                                stop_loss = sl)
-        print(order)
+        #order = session.place_active_order(symbol=SYMBOL,
+                                                #side="Sell",
+                                                #order_type="Market",
+                                                #qty= qty,
+                                                #time_in_force="GoodTillCancel",
+                                                #reduce_only=False,
+                                                #close_on_trigger=False,
+                                                #take_profit = tp,
+                                                #stop_loss = sl)
+        #print(order)
 
-        eth_order_id = str(order['result']['order_id'])
-        print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-        print(f"Order id: {eth_order_id}") 
-        print("---------------------------------------------------")
+        #eth_order_id = str(order['result']['order_id'])
+        #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+        #print(f"Order id: {eth_order_id}") 
+        #print("---------------------------------------------------")
 
         open_position = True
 
@@ -210,7 +210,7 @@ def strategy_short(qty, open_position = False):
             print("Closed Position")
             send_email(subject= f"{SYMBOL} Short SL", result=result, buy_price=buyprice, stop=sl)
             open_position = False
-            exit()
+            break
 
         elif df.Close[-1] <= tp: 
             result = round((buyprice - tp)*qty, 2)
@@ -222,13 +222,13 @@ def strategy_short(qty, open_position = False):
         elif df.RSI[-1] < RSI_EXIT:
             
             try: 
-                print(session.place_active_order(symbol=SYMBOL,
-                                                side="Buy",
-                                                order_type="Market",
-                                                qty= qty,
-                                                time_in_force="GoodTillCancel",
-                                                reduce_only=True,
-                                                close_on_trigger=False))  
+                #print(session.place_active_order(symbol=SYMBOL,
+                                                #side="Buy",
+                                                #order_type="Market",
+                                                #qty= qty,
+                                                #time_in_force="GoodTillCancel",
+                                                #reduce_only=True,
+                                                #close_on_trigger=False))  
 
                 print("---------------------------------------------------")
                 rsi_exit_price = round(df.Close.iloc[-1],2)
@@ -248,7 +248,7 @@ def strategy_short(qty, open_position = False):
 
 
 while True: 
-    strategy_short(0.6)
+    strategy_short(1)
     time.sleep(120)
 
 
