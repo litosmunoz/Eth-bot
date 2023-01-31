@@ -10,9 +10,7 @@ RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 1.03
 RISK = 0.985
-LIMIT_ORDER = 0.99
 MINUTES_DIVERGENCE = 150
-MINUTES_LIMIT_ORDER = 360
 
 
 import logging
@@ -130,7 +128,7 @@ It then checks if the value of the 'Buy' column in the last row of the dataframe
 If it is True, it enters a while loop where it continuously monitors the RSI and close price of Ethereum.
 If the RSI increases to above a certain threshold and the close price of Ethereum makes a lower low, it creates a limit order to enter a long position in Ethereum and sends an email to the user.
 If {MINUTES_DIVERGENCE} minutes pass and the condition has not been met, the program restarts.
-If the condition is met, the code monitors the status of the order and cancels the order if it has not been filled within {MINUTES_LIMIT_ORDER} minutes.'''
+If the condition is met, the code monitors the status of the order and cancels the order if it has not been filled within minutes.'''
 
 def strategy_long(qty, open_position = False):
     df= get5minutedata()
@@ -160,26 +158,25 @@ def strategy_long(qty, open_position = False):
             print("-------------------------------------------------------------------------------")
             time.sleep(60) # sleep for 60 secs
 
-            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price:
+            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price - 5:
                 # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
                 print('Consider entering a long position in Ethereum')
                 price = round(df.Close.iloc[-1],2)
-                buyprice_limit = round(price * LIMIT_ORDER,2)
-                tp = round(buyprice_limit * REWARD,2)
-                sl = round(buyprice_limit * RISK,2)
-                send_email(subject = f"{SYMBOL} Open Long Limit Order", buy_price=buyprice_limit, exit_price=tp, stop=sl)
+                #buyprice_limit = round(price * LIMIT_ORDER,2)
+                tp = round(price * REWARD,2)
+                sl = round(price * RISK,2)
+                send_email(subject = f"{SYMBOL} Open Long Order", buy_price=price, exit_price=tp, stop=sl)
 
                 print("-----------------------------------------")
 
-                print(f"Limit Buyprice: {buyprice_limit}")
+                print(f"Buyprice: {price}")
 
                 print("-----------------------------------------------------------------------------------------------------------------------------------------------")
 
                 order = session.place_active_order(symbol=SYMBOL,
                                             side="Buy",
-                                            order_type="Limit",
+                                            order_type="Market",
                                             qty= qty,
-                                            price = buyprice_limit,
                                             time_in_force="GoodTillCancel",
                                             reduce_only=False,
                                             close_on_trigger=False,
@@ -187,54 +184,13 @@ def strategy_long(qty, open_position = False):
                                             stop_loss = sl)
                 print(order)
 
-                break
+                open_position=True
+
+                break 
 
         else:
             print(f"{MINUTES_DIVERGENCE} minutes have passed. Restarting program.")
             return strategy_long()
-
-
-        # Set the expiration time for the order (200 mins from now)
-        expiration_time = int(time.time()) + (MINUTES_LIMIT_ORDER*60)
-        
-        # Wait until the expiration time
-        while int(time.time()) < expiration_time:
-            # Sleep for 10 seconds before checking the order status again
-            time.sleep(10)
-            # Update time_runner
-            time_runner = int((expiration_time - int(time.time()))/ 60)
-            # Check the status of the order
-            order_info = session.get_active_order(symbol= SYMBOL)
-            order_status = str(order_info['result']["data"][0]['order_status'])
-            print(f'Order Status: {order_status}')
-            print("Remaining minutes: ", time_runner)
-            print("---------------------------------")
-
-            # If the order has been filled or cancelled, exit the loop
-            if order_status == "Filled":
-                open_position = True
-                send_email(subject=f"{SYMBOL} Limit Order Filled")
-                break
-            elif order_status in ["Cancelled"]:
-                open_position = False 
-                send_email(subject=f"{SYMBOL} Order Cancelled Manually")
-                break
-        
-        else:
-            order_info = session.get_active_order(symbol= SYMBOL)
-            order_status = str(order_info['result']["data"][0]['order_status'])
-            print(order_status)
-            print("----------------------------------------------------------------------")
-            
-            if order_status not in ["Filled"]: 
-                try:
-                    cancel_order = session.cancel_all_active_orders(symbol= SYMBOL)
-                    print(cancel_order)
-                    send_email(subject= f"{SYMBOL} Limit Order has not been filled before the expiration time. Cancelling order...")
-                    open_position= False
-                    
-                except: 
-                    print("No orders need to be cancelled")
         
 
     while open_position:
@@ -242,8 +198,8 @@ def strategy_long(qty, open_position = False):
         df = get5minutedata()
         apply_technicals(df)
         current_price = round(df.Close.iloc[-1], 2)
-        current_profit = round((current_price-buyprice_limit) * qty, 2)
-        print(f"Buyprice: {buyprice_limit}" + '             Close: ' + str(df.Close.iloc[-1]))
+        current_profit = round((current_price-price) * qty, 2)
+        print(f"Buyprice: {price}" + '             Close: ' + str(df.Close.iloc[-1]))
         print(f'Target: ' + str(tp) + "                Stop: " + str(sl))
         print(f'RSI: {round(df.RSI.iloc[-1], 2)}')
         print(f'Current Profit : {current_profit}')
@@ -252,14 +208,14 @@ def strategy_long(qty, open_position = False):
         if current_price <= sl: 
             result = round((sl - price) * qty,2)
             print("Closed Position")
-            send_email(subject=f"{SYMBOL} Long SL", result = result, buy_price=buyprice_limit, stop= sl)
+            send_email(subject=f"{SYMBOL} Long SL", result = result, buy_price=price, stop= sl)
             open_position = False
             exit()
         
         elif current_price >= tp:
             result= round((tp - price) * qty, 2)
             print("Closed Position")
-            send_email(subject =f"{SYMBOL} Long TP", result = result, buy_price=buyprice_limit, exit_price= tp)
+            send_email(subject =f"{SYMBOL} Long TP", result = result, buy_price=price, exit_price= tp)
             open_position = False
             break
 
