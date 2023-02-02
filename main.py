@@ -205,14 +205,14 @@ def strategy_short(qty, open_position = False):
         print(f'Current Profit : {current_profit}')
         print("---------------------------------------------------")
 
-        if df.Close[-1] >= sl:
+        if current_price >= sl:
             result = round((buyprice - sl)*qty, 2)
             print("Closed Position")
             send_email(subject= f"{SYMBOL} Short SL", result=result, buy_price=buyprice, stop=sl)
             open_position = False
             break
 
-        elif df.Close[-1] <= tp: 
+        elif current_price <= tp: 
             result = round((buyprice - tp)*qty, 2)
             print("Closed Position")
             send_email(subject= f"{SYMBOL} Short TP", result=result, buy_price=buyprice, exit_price=tp)
