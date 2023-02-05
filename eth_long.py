@@ -41,7 +41,7 @@ sys.stdout = f
 
 
 # Set up logging
-logging.basicConfig(filename='strategy.log', level=logging.INFO,
+logging.basicConfig(filename='eth_l.log', level=logging.INFO,
                     format='%(asctime)s %(message)s')
 
 # In[1]::
