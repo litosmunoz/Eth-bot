@@ -1,6 +1,22 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import atexit
+import logging
+import sys
+import pandas as pd
+import numpy as np
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
+import os
+import time
+import ta 
+import warnings
+warnings.simplefilter("ignore")
+
+
 # Variables
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
@@ -13,18 +29,15 @@ RISK = 0.988
 MINUTES_DIVERGENCE = 150
 
 
-import logging
-import pandas as pd
-import numpy as np
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from dotenv import load_dotenv
-import os
-import time
-import ta 
-import warnings
-warnings.simplefilter("ignore")
+def exit_handler():
+    print('My application is ending!')
+    sys.stdout = orig_stdout
+    f.close()
+
+atexit.register(exit_handler)
+orig_stdout = sys.stdout
+f = open('eth_long.txt', 'w')
+sys.stdout = f
 
 
 # Set up logging
@@ -146,6 +159,7 @@ def strategy_long(qty, open_position = False):
     if round(df.RSI.iloc[-1], 2) < RSI_THRESHOLD_LOW:
         previous_price = round(df.Close.iloc[-1], 2)
         start_time = int(time.time())
+        send_email(subject = f"{SYMBOL} - Might Open Long Order Soon (RSI 22)")
         while (int(time.time()) - start_time) < (MINUTES_DIVERGENCE * 60):
             df = get5minutedata()
             apply_technicals(df)
@@ -158,11 +172,10 @@ def strategy_long(qty, open_position = False):
             print("-------------------------------------------------------------------------------")
             time.sleep(60) # sleep for 60 secs
 
-            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price - 5:
+            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price - 10:
                 # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
                 print('Consider entering a long position in Ethereum')
                 price = round(df.Close.iloc[-1],2)
-                #buyprice_limit = round(price * LIMIT_ORDER,2)
                 tp = round(price * REWARD,2)
                 sl = round(price * RISK,2)
                 send_email(subject = f"{SYMBOL} Open Long Order", buy_price=price, exit_price=tp, stop=sl)
@@ -171,30 +184,20 @@ def strategy_long(qty, open_position = False):
 
                 print(f"Buyprice: {price}")
 
-                print("-----------------------------------------------------------------------------------------------------------------------------------------------")
+                print("-----------------------------------------")
 
-                order = session.place_active_order(symbol=SYMBOL,
-                                            side="Buy",
-                                            order_type="Market",
-                                            qty= qty,
-                                            time_in_force="GoodTillCancel",
-                                            reduce_only=False,
-                                            close_on_trigger=False,
-                                            take_profit = tp,
-                                            stop_loss = sl)
-                print(order)
 
                 open_position=True
 
                 break 
 
-        else:
+        if open_position== False:
             print(f"{MINUTES_DIVERGENCE} minutes have passed. Restarting program.")
-            open_position = False
+            send_email(subject = f"{SYMBOL} - {MINUTES_DIVERGENCE} mins and NO DIVERGENCE")
         
 
     while open_position:
-        time.sleep(15)
+        time.sleep(10)
         df = get5minutedata()
         apply_technicals(df)
         current_price = round(df.Close.iloc[-1], 2)
@@ -225,5 +228,5 @@ def strategy_long(qty, open_position = False):
 
 
 while True: 
-    strategy_long(0.1)
-    time.sleep(15)
+    strategy_long(0.7)
+    time.sleep(60)

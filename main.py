@@ -3,6 +3,21 @@
 
 # In[1]:
 
+import atexit
+import sys
+import pandas as pd
+import numpy as np
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
+import os
+import time
+import ta
+import warnings
+warnings.simplefilter("ignore")
+
+
 # Variables
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
@@ -16,17 +31,16 @@ REWARD = 0.96 #4%
 RISK = 1.015  #1.5%
 
 
-import pandas as pd
-import numpy as np
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from dotenv import load_dotenv
-import os
-import time
-import ta
-import warnings
-warnings.simplefilter("ignore")
+
+def exit_handler():
+    print('My application is ending!')
+    sys.stdout = orig_stdout
+    f.close()
+
+atexit.register(exit_handler)
+orig_stdout = sys.stdout
+f = open('eth_short.txt', 'w')
+sys.stdout = f
 
 
 # In[2]:
@@ -173,7 +187,7 @@ def strategy_short(qty, open_position = False):
 
         print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
-        #order = session.place_active_order(symbol=SYMBOL,
+        '''order = session.place_active_order(symbol=SYMBOL,
                                                 #side="Sell",
                                                 #order_type="Market",
                                                 #qty= qty,
@@ -187,7 +201,7 @@ def strategy_short(qty, open_position = False):
         #eth_order_id = str(order['result']['order_id'])
         #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
         #print(f"Order id: {eth_order_id}") 
-        #print("---------------------------------------------------")
+        #print("---------------------------------------------------")'''
 
         open_position = True
 
@@ -210,7 +224,7 @@ def strategy_short(qty, open_position = False):
             print("Closed Position")
             send_email(subject= f"{SYMBOL} Short SL", result=result, buy_price=buyprice, stop=sl)
             open_position = False
-            break
+            exit()
 
         elif current_price <= tp: 
             result = round((buyprice - tp)*qty, 2)
@@ -222,15 +236,6 @@ def strategy_short(qty, open_position = False):
         elif df.RSI[-1] < RSI_EXIT:
             
             try: 
-                #print(session.place_active_order(symbol=SYMBOL,
-                                                #side="Buy",
-                                                #order_type="Market",
-                                                #qty= qty,
-                                                #time_in_force="GoodTillCancel",
-                                                #reduce_only=True,
-                                                #close_on_trigger=False))  
-
-                print("---------------------------------------------------")
                 rsi_exit_price = round(df.Close.iloc[-1],2)
                 result= round((buyprice -rsi_exit_price)*qty, 2)
                 print("Closed position")
@@ -248,7 +253,7 @@ def strategy_short(qty, open_position = False):
 
 
 while True: 
-    strategy_short(1)
+    strategy_short(0.7)
     time.sleep(120)
 
 
