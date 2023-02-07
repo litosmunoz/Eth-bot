@@ -21,7 +21,7 @@ warnings.simplefilter("ignore")
 # Variables
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
-RSI_ENTER = 72
+RSI_ENTER = 74
 D_ENTER = 0.7
 K_DIFF = 0.06
 RSI_EXIT = 25
@@ -254,7 +254,7 @@ def strategy_short(qty, open_position = False):
 
 while True: 
     strategy_short(0.7)
-    time.sleep(120)
+    time.sleep(20)
 
 
 
