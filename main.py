@@ -213,11 +213,11 @@ def strategy_short(qty, open_position = False):
         current_profit = round((buyprice-current_price) * qty, 2)
         print(f"Buyprice: {buyprice}" + '               Close: ' + str(df.Close.iloc[-1]))
         print(f'Target: ' + str(tp) + "                  Stop: " + str(sl))
-        print(f"RSI: {round(df.RSI.iloc[-1], 2)}       K: {round(df.K.iloc[-1], 2)}       D: {round(df.D.iloc[-1], 2)}")
+        print(f"RSI: {round(df.RSI.iloc[-1], 2)}            K: {round(df.K.iloc[-1], 2)}          D: {round(df.D.iloc[-1], 2)}")
         print(f'RSI Target: {RSI_EXIT}')
         print(f"K < D: {round(df.K.iloc[-1], 2) > round(df.D.iloc[-1], 2)}")
         print(f'Current Profit : {current_profit}')
-        print("---------------------------------------------------")
+        print("------------------------------------------------------------")
 
         if current_price >= sl:
             result = round((buyprice - sl)*qty, 2)
@@ -254,7 +254,7 @@ def strategy_short(qty, open_position = False):
 
 while True: 
     strategy_short(0.7)
-    time.sleep(20)
+    time.sleep(30)
 
 
 
