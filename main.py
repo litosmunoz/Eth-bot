@@ -21,10 +21,10 @@ warnings.simplefilter("ignore")
 # Variables
 SYMBOL = "ETHUSDT"
 INTERVAL = "5m"
-RSI_ENTER = 74
-D_ENTER = 0.7
+RSI_ENTER = 73
+#D_ENTER = 0.7
 K_DIFF = 0.06
-RSI_EXIT = 25
+RSI_EXIT = 24
 RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 0.96 #4%
@@ -124,7 +124,7 @@ class Signals:
     def decide(self):
          self.df["trigger"] = np.where(self.get_trigger(), 1, 0)
          self.df["Sell"]= np.where((self.df.trigger) & 
-                                    (self.df["D"] > D_ENTER) &
+                                    #(self.df["D"] > D_ENTER) &
                                     (self.df["K"] + K_DIFF < self.df["D"]), 1, 0)
 
 
@@ -168,7 +168,7 @@ def send_email(subject, result = None, buy_price = None, exit_price = None, stop
 def strategy_short(qty, open_position = False):
     df= get5minutedata()
     apply_technicals(df)
-    inst = Signals(df, 1)
+    inst = Signals(df, 0)
     inst.decide()
     print(f'Current Time is ' + str(df.index[-1]))
     print(f'Current Close is '+str(df.Close.iloc[-1]))
@@ -179,7 +179,7 @@ def strategy_short(qty, open_position = False):
         buyprice = round(df.Close.iloc[-1],2)
         tp = round(buyprice * REWARD,2)
         sl = round(buyprice * RISK,2)
-        send_email(subject= f"{SYMBOL} Open Short", buy_price=buyprice, exit_price=tp, stop=sl)
+        send_email(subject= f"{SYMBOL} Open Short Market", buy_price=buyprice, exit_price=tp, stop=sl)
             
         print("-----------------------------------------")
 

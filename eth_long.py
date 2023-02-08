@@ -43,7 +43,7 @@ sys.stdout = f
 # Set up logging
 logging.basicConfig(filename='eth_l.log', level=logging.INFO,
                     format='%(asctime)s %(message)s')
-
+xx
 # In[1]::
 load_dotenv()
 
