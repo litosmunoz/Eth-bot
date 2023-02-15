@@ -25,8 +25,8 @@ RSI_THRESHOLD_HIGH = 36
 RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 1.03
-RISK = 0.988
-MINUTES_DIVERGENCE = 150
+RISK = 0.986
+MINUTES_DIVERGENCE = 250
 
 
 def exit_handler():
@@ -161,36 +161,44 @@ def strategy_long(qty, open_position = False):
         start_time = int(time.time())
         send_email(subject = f"{SYMBOL} - Might Open Long Order Soon (RSI 22)")
         while (int(time.time()) - start_time) < (MINUTES_DIVERGENCE * 60):
-            df = get5minutedata()
-            apply_technicals(df)
-            time_runner = (MINUTES_DIVERGENCE * 60) - ((int(time.time()) - start_time))
-            remaining_minutes = int(time_runner / 60)
-            print(f'Current Time is ' + str(df.index[-1]))
-            print(f'Current Close is '+str(df.Close.iloc[-1]))
-            print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
-            print(f"Searching for RSI > {RSI_THRESHOLD_HIGH} and a Lower Low than {previous_price}")
-            print("Remaining minutes: ", remaining_minutes)
-            print("-------------------------------------------------------------------------------")
-            time.sleep(60) # sleep for 60 secs
+            for i in range(5):
+                try: 
+                    df = get5minutedata()
+                    apply_technicals(df)
+                    time_runner = (MINUTES_DIVERGENCE * 60) - ((int(time.time()) - start_time))
+                    remaining_minutes = int(time_runner / 60)
+                    print(f'Current Time is ' + str(df.index[-1]))
+                    print(f'Current Close is '+str(df.Close.iloc[-1]))
+                    print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
+                    print(f"Searching for RSI > {RSI_THRESHOLD_HIGH} and a Lower Low than {previous_price}")
+                    print("Remaining minutes: ", remaining_minutes)
+                    print("-------------------------------------------------------------------------------")
+                    time.sleep(60) # sleep for 60 secs
 
-            if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price - 5:
-                # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
-                print('Consider entering a long position in Ethereum')
-                price = round(df.Close.iloc[-1],2)
-                tp = round(price * REWARD,2)
-                sl = round(price * RISK,2)
-                send_email(subject = f"{SYMBOL} Open Long Order", buy_price=price, exit_price=tp, stop=sl)
+                    if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price - 5:
+                        # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
+                        print('Consider entering a long position in Ethereum')
+                        price = round(df.Close.iloc[-1],2)
+                        tp = round(price * REWARD,2)
+                        sl = round(price * RISK,2)
+                        send_email(subject = f"{SYMBOL} Open Long Order", buy_price=price, exit_price=tp, stop=sl)
 
-                print("-----------------------------------------")
+                        print("-----------------------------------------")
 
-                print(f"Buyprice: {price}")
+                        print(f"Buyprice: {price}")
 
-                print("-----------------------------------------")
+                        print("-----------------------------------------")
 
+                        open_position=True
 
-                open_position=True
-
-                break 
+                        break 
+                
+                except TimeoutError:
+                        if i == 4:
+                            raise
+                        wait_time = 2**i
+                        print(f"Request timed out. Retrying in {wait_time} seconds")
+                        time.sleep(wait_time)
 
         if open_position== False:
             print(f"{MINUTES_DIVERGENCE} minutes have passed. Restarting program.")
