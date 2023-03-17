@@ -2,10 +2,8 @@
 # coding: utf-8
 
 import atexit
-import logging
 import sys
 import pandas as pd
-import numpy as np
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -25,7 +23,7 @@ RSI_THRESHOLD_HIGH = 36
 RSI_WINDOW = 14
 STOCH_SMA = 3
 REWARD = 1.03
-RISK = 0.986
+RISK = 0.985
 MINUTES_DIVERGENCE = 250
 
 
@@ -39,10 +37,6 @@ orig_stdout = sys.stdout
 f = open('eth_long.txt', 'w')
 sys.stdout = f
 
-
-# Set up logging
-logging.basicConfig(filename='eth_l.log', level=logging.INFO,
-                    format='%(asctime)s %(message)s')
                     
 # In[1]::
 load_dotenv()
@@ -52,10 +46,12 @@ load_dotenv()
 
 
 #Loading my Bybit's API keys from the dotenv file
-api_key_pw = os.getenv('api_key_bot_IP')
-api_secret_pw = os.getenv('api_secret_bot_IP')
+api_key_pw = os.getenv('api_key')
+api_secret_pw = os.getenv('api_secret')
 sender_pass = os.getenv('mail_key')
-receiver_address = os.getenv('mail')
+receiver_address = os.getenv('mail_receiver')
+sender_address = os.getenv('mail_sender') 
+
 
 # In[3]:
 
@@ -63,14 +59,6 @@ receiver_address = os.getenv('mail')
 #Establishing Connection with the API (SPOT)
 from pybit import spot
 session_auth = spot.HTTP(
-    endpoint='https://api.bybit.com',
-    api_key = api_key_pw,
-    api_secret= api_secret_pw
-)
-
-#Establishing Connection with the API (FUTURES)
-from pybit import usdt_perpetual
-session = usdt_perpetual.HTTP(
     endpoint='https://api.bybit.com',
     api_key = api_key_pw,
     api_secret= api_secret_pw
@@ -104,10 +92,6 @@ def apply_technicals(df):
 
 # In[6]:
 
-
-#The sender mail address and password
-sender_address = 'pythontradingbot11@gmail.com'
-
 #Function to automate mails
 def send_email(subject, result = None, buy_price = None, exit_price = None, stop = None):
     content = ""
@@ -136,12 +120,6 @@ def send_email(subject, result = None, buy_price = None, exit_price = None, stop
 
 
 # In[7]:
-f'''It starts by getting the 5-minute data for Ethereum and applying certain technical indicators to it.
-It then checks if the value of the 'Buy' column in the last row of the dataframe is True.
-If it is True, it enters a while loop where it continuously monitors the RSI and close price of Ethereum.
-If the RSI increases to above a certain threshold and the close price of Ethereum makes a lower low, it creates a limit order to enter a long position in Ethereum and sends an email to the user.
-If {MINUTES_DIVERGENCE} minutes pass and the condition has not been met, the program restarts.
-If the condition is met, the code monitors the status of the order and cancels the order if it has not been filled within minutes.'''
 
 def strategy_long(qty, open_position = False):
     df= get5minutedata()
@@ -150,11 +128,6 @@ def strategy_long(qty, open_position = False):
     print(f'Current Close is '+str(df.Close.iloc[-1]))
     print(f"RSI: {round(df.RSI.iloc[-1], 2)}")
     print("-----------------------------------------")
-
-    '''The following algorithm checks if the RSI is less than {RSI_THRESHOLD_LOW} ex. 20 and then it enters a while loop. 
-    Inside the while loop, it continuously monitors the RSI and the close price of Ethereum. 
-    Once the RSI increases to above {RSI_THRESHOLD_HIGH} ex. 30 and the close price of Ethereum makes a lower low, 
-    it creates a limit order to enters a long position in Ethereum using the session.place_active_order() function and sends an email to the user.'''
 
     if round(df.RSI.iloc[-1], 2) < RSI_THRESHOLD_LOW:
         previous_price = round(df.Close.iloc[-1], 2)
@@ -176,7 +149,6 @@ def strategy_long(qty, open_position = False):
                     time.sleep(60) # sleep for 60 secs
 
                     if round(df["RSI"].iloc[-1], 2) >= RSI_THRESHOLD_HIGH and round(df['Close'].iloc[-1],2) < previous_price - 5:
-                        # If the RSI increases to 30 and the price makes a lower low, enter a long position in Ethereum
                         print('Consider entering a long position in Ethereum')
                         price = round(df.Close.iloc[-1],2)
                         tp = round(price * REWARD,2)
@@ -230,7 +202,6 @@ def strategy_long(qty, open_position = False):
             print("Closed Position")
             send_email(subject =f"{SYMBOL} Long TP", result = result, buy_price=price, exit_price= tp)
             open_position = False
-            break
 
 
 
@@ -238,5 +209,5 @@ def strategy_long(qty, open_position = False):
 
 
 while True: 
-    strategy_long(0.7)
+    strategy_long(10)
     time.sleep(60)
